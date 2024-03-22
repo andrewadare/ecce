@@ -1,32 +1,5 @@
 #include "simulation.hpp"
 
-std::vector<gtsam::Point3> tagCorners(const gtsam::Pose3& pose,
-                                      const double edgeLength) {
-  const double a = edgeLength / 2;
-
-  return {pose.transformFrom(gtsam::Point3(-a, a, 0)),
-          pose.transformFrom(gtsam::Point3(a, a, 0)),
-          pose.transformFrom(gtsam::Point3(a, -a, 0)),
-          pose.transformFrom(gtsam::Point3(-a, -a, 0))};
-}
-
-void addCamera(const std::string& name, const std::array<double, 3>& ypr,
-               const gtsam::Point3& position, PoseMap& poses) {
-  // Identifier for factor graph symbols
-  static unsigned int cameraId = 0;
-  const auto rot = gtsam::Rot3::Ypr(ypr[0], ypr[1], ypr[2]);
-  poses[name] = {gtsam::Symbol('c', cameraId), gtsam::Pose3(rot, position)};
-  ++cameraId;
-}
-
-void addTag(const std::string& name, const std::array<double, 3>& ypr,
-            const gtsam::Point3& position, PoseMap& poses) {
-  static unsigned int tagId = 0;
-  const auto rot = gtsam::Rot3::Ypr(ypr[0], ypr[1], ypr[2]);
-  poses[name] = {gtsam::Symbol('t', tagId), gtsam::Pose3(rot, position)};
-  ++tagId;
-}
-
 PoseMap simulateCameraPoses() {
   PoseMap poses;
 
@@ -85,20 +58,6 @@ PoseMap simulateTagPoses() {
   addTag("right_target", {-M_PI / 2, 0, M_PI / 2}, {5.0, -1.5, 1.0}, poses);
 
   return poses;
-}
-
-gtsam::Point3 worldToCamera(const gtsam::Point3& point,
-                            const gtsam::Pose3 cameraPose) {
-  // FLU -> RDF basis change: columns x, y, z -> z, -x, -y.
-  gtsam::Matrix33 B;
-  B << 0, -1, 0,  //
-      0, 0, -1,   //
-      1, 0, 0;
-
-  const gtsam::Matrix33 R = B * cameraPose.rotation().matrix().transpose();
-  const gtsam::Point3 t = -R * cameraPose.translation();
-
-  return R * point + t;
 }
 
 void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
