@@ -60,18 +60,7 @@ PoseMap simulateTagPoses() {
   return poses;
 }
 
-void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
-                     gtsam::NonlinearFactorGraph& graph) {
-  graph.print();
-
-  // const double tagSize = 0.5;  // Edge length of fiducial markers [m]
-
-  // Camera model: distortion-free standard pinhole with 5 intrinsic parameters
-  // (fx, fy, skew, principal point). For simplicity, take the onboard
-  // camera calibration model to be the same as the external cameras.
-  // Model focal parameters using straight-line rays:
-  //   tan(fov/2) = image_size / 2f.
-  //
+gtsam::Cal3_S2::shared_ptr simulateCamera() {
   const double image_width = 1280, image_height = 960;
   const double fov = 90.0 * M_PI / 180.;  // isotropic
   const double fx = 0.5 * image_width / std::tan(0.5 * fov);
@@ -80,14 +69,21 @@ void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
   gtsam::Cal3_S2::shared_ptr intrinsics(
       new gtsam::Cal3_S2(fx, fy, 0., image_width / 2, image_height / 2));
 
+  return intrinsics;
+}
+
+void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
+                     gtsam::NonlinearFactorGraph& graph) {
+  // Create a calibration model for projection
+  gtsam::Cal3_S2::shared_ptr intrinsics = simulateCamera();
+
   // Isotropic 2x2 image point (u,v) detection uncertainty covariance [px]
   auto uvNoise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
-  const std::string sides[] = {"left", "right"};
-  const std::string ends[] = {"front", "rear"};
-
   // Here we loop through external camera views on each side of the vehicle
   // at each tag position in order to project the tag corners to image points.
+  const std::string sides[] = {"left", "right"};
+  const std::string ends[] = {"front", "rear"};
 
   for (int i = 0; i < 3; ++i) {  // TODO hardcoded to 3 views per side
     for (const auto& side : sides) {

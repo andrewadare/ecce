@@ -28,6 +28,13 @@ PoseMap simulateCameraPoses();
 // Generate ground-truth fiducial tag poses for calibration setup
 PoseMap simulateTagPoses();
 
+// Camera model: distortion-free standard pinhole with 5 intrinsic parameters
+// (fx, fy, skew, principal point). For simplicity, take the onboard
+// camera calibration model to be the same as the external cameras.
+// Model focal parameters using straight-line rays:
+//   tan(fov/2) = image_size / 2f.
+gtsam::Cal3_S2::shared_ptr simulateCamera();
+
 // Generate point measurements and add to factor graph
 void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
                      gtsam::NonlinearFactorGraph& graph);
