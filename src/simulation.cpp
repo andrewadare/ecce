@@ -1,5 +1,9 @@
 #include "simulation.hpp"
 
+#include <opencv2/calib3d.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
+
 PoseMap simulateCameraPoses() {
   PoseMap poses;
 
@@ -72,6 +76,16 @@ gtsam::Cal3_S2::shared_ptr simulateCamera() {
   return intrinsics;
 }
 
+void draw(std::vector<gtsam::Point2> pts, const std::string& name) {
+  cv::Mat im(960, 1280, CV_8UC3);
+
+  for (const auto& p : pts) {
+    cv::circle(im, {int(p[0]), int(p[1])}, 4, {0, 255, 0}, -1);
+  }
+
+  cv::imwrite(cv::format("%s.png", name.c_str()), im);
+}
+
 void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
                      gtsam::NonlinearFactorGraph& graph) {
   // Create a calibration model for projection
@@ -94,6 +108,7 @@ void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
 
       gtsam::PinholeCamera<gtsam::Cal3_S2> camera(cameraPose, *intrinsics);
 
+      std::vector<gtsam::Point2> cornerPoints;
       for (const auto& end : ends) {
         std::stringstream tagName;
         tagName << side << "_" << end << "_wheel";
@@ -109,7 +124,14 @@ void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
 
         graph.emplace_shared<ProjectionFactor>(uv, uvNoise, cameraSymbol,
                                                tagSymbol, intrinsics);
+
+        for (const auto& point : tagCorners(tagPose, 0.5)) {
+          cornerPoints.push_back(
+              camera.project(worldToCamera(point, cameraPose)));
+        }
       }
+
+      draw(cornerPoints, cameraName.str());
     }
   }
 }
