@@ -1,4 +1,4 @@
-#include "pose_map.hpp"
+#include <ecce/pose_map.hpp>
 
 void addCamera(const std::string& name, const std::array<double, 3>& ypr,
                const gtsam::Point3& position, PoseMap& poses) {

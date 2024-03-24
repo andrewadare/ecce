@@ -1,4 +1,4 @@
-#include "geometry.hpp"
+#include <ecce/geometry.hpp>
 
 gtsam::Point3 worldToCamera(const gtsam::Point3& point,
                             const gtsam::Pose3 cameraPose) {

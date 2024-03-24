@@ -1,5 +1,4 @@
-#include "simulation.hpp"
-
+#include <ecce/simulation.hpp>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
@@ -79,6 +78,9 @@ gtsam::Cal3_S2::shared_ptr simulateCamera() {
 void draw(std::vector<gtsam::Point2> pts, const std::string& name) {
   cv::Mat im(960, 1280, CV_8UC3);
 
+  // TL corner in white
+  cv::circle(im, {int(pts[0][0]), int(pts[0][1])}, 6, {255, 255, 255}, -1);
+
   for (const auto& p : pts) {
     cv::circle(im, {int(p[0]), int(p[1])}, 4, {0, 255, 0}, -1);
   }
@@ -105,10 +107,12 @@ void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
       cameraName << side << "_external_camera_" << i;
 
       const auto [cameraSymbol, cameraPose] = cameraPoses.at(cameraName.str());
+      // cout << cameraName.str() << endl;
+      // cout << cameraPose.translation() << endl;
 
       gtsam::PinholeCamera<gtsam::Cal3_S2> camera(cameraPose, *intrinsics);
 
-      std::vector<gtsam::Point2> cornerPoints;
+      std::vector<gtsam::Point2> tagPoints;
       for (const auto& end : ends) {
         std::stringstream tagName;
         tagName << side << "_" << end << "_wheel";
@@ -116,22 +120,23 @@ void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
 
         // TODO add noise
         const auto [tagSymbol, tagPose] = tagPoses.at(tagName.str());
+        cout << tagPose.translation() << endl;
 
         // Use projected tag center point as the observed landmark
         gtsam::Point2 uv =
             camera.project(worldToCamera(tagPose.translation(), cameraPose));
-        cout << uv << endl;
+
+        tagPoints.push_back(uv);
 
         graph.emplace_shared<ProjectionFactor>(uv, uvNoise, cameraSymbol,
                                                tagSymbol, intrinsics);
 
         for (const auto& point : tagCorners(tagPose, 0.5)) {
-          cornerPoints.push_back(
-              camera.project(worldToCamera(point, cameraPose)));
+          tagPoints.push_back(camera.project(worldToCamera(point, cameraPose)));
         }
       }
 
-      draw(cornerPoints, cameraName.str());
+      draw(tagPoints, cameraName.str());
     }
   }
 }

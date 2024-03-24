@@ -12,8 +12,8 @@
 #include <sstream>
 #include <vector>
 
-#include "geometry.hpp"
-#include "pose_map.hpp"
+#include <ecce/geometry.hpp>
+#include <ecce/pose_map.hpp>
 
 using std::cout, std::endl;
 using ProjectionFactor =
