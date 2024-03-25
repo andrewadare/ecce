@@ -8,14 +8,14 @@
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/slam/ProjectionFactor.h>
 
+#include <ecce/geometry.hpp>
+#include <ecce/pose_map.hpp>
 #include <iostream>
 #include <sstream>
 #include <vector>
 
-#include <ecce/geometry.hpp>
-#include <ecce/pose_map.hpp>
-
 using std::cout, std::endl;
+using Camera = gtsam::PinholeCamera<gtsam::Cal3_S2>;
 using ProjectionFactor =
     gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3_S2>;
 
@@ -28,6 +28,9 @@ PoseMap simulateCameraPoses();
 // Generate ground-truth fiducial tag poses for calibration setup
 PoseMap simulateTagPoses();
 
+// Generate ground-truth camera poses by looking at tags
+PoseMap lookAtTags(const PoseMap& tagPoses);
+
 // Camera model: distortion-free standard pinhole with 5 intrinsic parameters
 // (fx, fy, skew, principal point). For simplicity, take the onboard
 // camera calibration model to be the same as the external cameras.
@@ -38,3 +41,6 @@ gtsam::Cal3_S2::shared_ptr simulateCamera();
 // Generate point measurements and add to factor graph
 void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
                      gtsam::NonlinearFactorGraph& graph);
+
+// Draw projected points on image and save to <name>.png
+void draw(std::vector<gtsam::Point2> pts, const std::string& name);

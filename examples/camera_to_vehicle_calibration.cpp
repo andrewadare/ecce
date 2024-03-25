@@ -1,4 +1,4 @@
-#include "simulation.hpp"
+#include <ecce/simulation.hpp>
 
 int main(int argc, char* argv[]) {
   if (argc != 1) {
@@ -6,8 +6,8 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  PoseMap cameraPoses = simulateCameraPoses();
   PoseMap tagPoses = simulateTagPoses();
+  PoseMap cameraPoses = lookAtTags(tagPoses);
 
   gtsam::NonlinearFactorGraph graph;
 

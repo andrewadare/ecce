@@ -6,28 +6,36 @@
 PoseMap simulateCameraPoses() {
   PoseMap poses;
 
-  // Onboard camera
-  addCamera("onboard_camera", {0, 0, 0}, {2.5, 0, 2}, poses);
-
-  // External cameras
+  // External camera coords in vehicle frame (xyz = fwd-left-up)
   constexpr size_t numViews = 3;
   const std::array<double, numViews> xs = {-1.0, 0.0, 1.0};
   const std::array<double, numViews> ys = {5.0, 6.0, 7.0};
   const std::array<double, numViews> zs = {1.5, 1.5, 1.5};
   const std::array<double, numViews> yaws = {0.9, 1.12, 1.3};
 
-  std::stringstream ss;
+  // Left external camera poses
   for (size_t i = 0; i < numViews; ++i) {
-    ss.str("");
-    ss.clear();
+    std::stringstream ss;
     ss << "left_external_camera_" << i;
-    addCamera(ss.str(), {-yaws[i], 0., 0.}, {xs[i], ys[i], zs[i]}, poses);
-
-    ss.str("");
-    ss.clear();
-    ss << "right_external_camera_" << i;
-    addCamera(ss.str(), {yaws[i], 0., 0.}, {xs[i], -ys[i], zs[i]}, poses);
+    auto pose = gtsam::Pose3(gtsam::Rot3::Yaw(yaws[i]), {xs[i], ys[i], zs[i]});
+    pose = changeBasis(pose, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
+    addCamera(ss.str(), pose, poses);
   }
+
+  // Right external camera poses
+  for (size_t i = 0; i < numViews; ++i) {
+    std::stringstream ss;
+    ss << "right_external_camera_" << i;
+    auto pose =
+        gtsam::Pose3(gtsam::Rot3::Yaw(-yaws[i]), {xs[i], -ys[i], zs[i]});
+    pose = changeBasis(pose, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
+    addCamera(ss.str(), pose, poses);
+  }
+
+  // Onboard camera pose: the goal is to recover this!
+  auto pose = gtsam::Pose3(gtsam::Rot3::Identity(), {2.5, 0, 2});
+  pose = changeBasis(pose, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
+  addCamera("onboard_camera", pose, poses);
 
   return poses;
 };
@@ -40,25 +48,78 @@ PoseMap simulateTagPoses() {
   const double track = 2.0;
   const double wheel_radius = 0.5;
 
-  // Create fiducial tags centered on the wheel hubs.
-  // A tag with pose I(4) would lay on the ground with the top edge toward the
-  // front of the vehicle.
-  // To orient the tags vertically, rotate about x (i.e. roll) 90 degrees.
-  // The right tags naturally face outward as desired, but the left tags
-  // must rotate 180 degrees about z.
-  addTag("right_front_wheel", {0, 0, M_PI / 2},
-         {wheelbase, -track / 2, wheel_radius}, poses);
-  addTag("right_rear_wheel", {0, 0, M_PI / 2}, {0.0, -track / 2, wheel_radius},
-         poses);
-  addTag("left_front_wheel", {M_PI, 0, M_PI / 2},
-         {wheelbase, track / 2, wheel_radius}, poses);
-  addTag("left_rear_wheel", {M_PI, 0, M_PI / 2}, {0.0, track / 2, wheel_radius},
-         poses);
+  // Tag orientations on left and right sides of the vehicle
+  const auto Rleft = gtsam::Rot3::Ypr(M_PI, 0, M_PI / 2);
+  const auto Rright = gtsam::Rot3::Ypr(0, 0, M_PI / 2);
 
-  // Tag poses in front of the vehicle are visible to both the onboard camera
-  // and the external cameras on the respective side.
-  addTag("left_target", {-M_PI / 2, 0, M_PI / 2}, {5.0, 1.5, 1.0}, poses);
-  addTag("right_target", {-M_PI / 2, 0, M_PI / 2}, {5.0, -1.5, 1.0}, poses);
+  // Orientation of tags in front of vehicle
+  const auto Rfront = gtsam::Rot3::Ypr(-M_PI / 2, 0, M_PI / 2);
+
+  // Wheel-mounted tags: right front/rear and left front/rear
+  auto rf = gtsam::Pose3(Rright, {wheelbase, -track / 2, wheel_radius});
+  auto rr = gtsam::Pose3(Rright, {0.0, -track / 2, wheel_radius});
+  auto lf = gtsam::Pose3(Rleft, {wheelbase, track / 2, wheel_radius});
+  auto lr = gtsam::Pose3(Rleft, {0.0, track / 2, wheel_radius});
+
+  // Front tags face back to vehicle with left/right offsets from centerline
+  auto fl = gtsam::Pose3(Rfront, {5.0, 1.5, 1.0});
+  auto fr = gtsam::Pose3(Rfront, {5.0, -1.5, 1.0});
+
+  // FLU -> RDF
+  rf = changeBasis(rf, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
+  rr = changeBasis(rr, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
+  lf = changeBasis(lf, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
+  lr = changeBasis(lr, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
+  fl = changeBasis(fl, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
+  fr = changeBasis(fr, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
+
+  addTag("right_front_wheel", rf, poses);
+  addTag("right_rear_wheel", rr, poses);
+  addTag("left_front_wheel", lf, poses);
+  addTag("left_rear_wheel", lr, poses);
+  addTag("front_left", fl, poses);
+  addTag("front_right", fr, poses);
+
+  return poses;
+}
+
+PoseMap lookAtTags(const PoseMap& tagPoses) {
+  PoseMap poses;  // for cameras
+
+  // Camera positions
+  constexpr size_t numViews = 3;
+  const gtsam::Point3 up(0, 0, 1);
+
+  // External camera positions in for 3 views
+  // x: distance right of centerline
+  // y: distance below ground level
+  // z: distance fwd of rear axle
+  const std::array<double, numViews> x = {5.0, 6.0, 7.0};
+  const std::array<double, numViews> y = {-1.5, -1.5, -1.5};
+  const std::array<double, numViews> z = {-1.0, 0.0, 1.0};
+
+  const auto [rfSymbol, rfPose] = tagPoses.at("right_front_wheel");
+  const auto [lfSymbol, lfPose] = tagPoses.at("left_front_wheel");
+
+  // Left external camera poses
+  for (size_t i = 0; i < numViews; ++i) {
+    std::stringstream ss;
+    ss << "left_external_camera_" << i;
+    const auto pose =
+        Camera::LookatPose({-x[i], y[i], z[i]}, lfPose.translation(), up);
+    addCamera(ss.str(), pose, poses);
+  }
+
+  // Right external camera poses
+  for (size_t i = 0; i < numViews; ++i) {
+    std::stringstream ss;
+    ss << "right_external_camera_" << i;
+    const auto pose =
+        Camera::LookatPose({x[i], y[i], z[i]}, rfPose.translation(), up);
+    addCamera(ss.str(), pose, poses);
+  }
+
+  // TODO onboard camera
 
   return poses;
 }
@@ -120,20 +181,21 @@ void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
 
         // TODO add noise
         const auto [tagSymbol, tagPose] = tagPoses.at(tagName.str());
-        cout << tagPose.translation() << endl;
+
+        cout << "tag: " << tagPose.translation() << endl;
+        cout << "cam: " << cameraPose.translation() << endl;
 
         // Use projected tag center point as the observed landmark
-        gtsam::Point2 uv =
-            camera.project(worldToCamera(tagPose.translation(), cameraPose));
+        gtsam::Point2 uv = camera.project(tagPose.translation());
 
         tagPoints.push_back(uv);
 
         graph.emplace_shared<ProjectionFactor>(uv, uvNoise, cameraSymbol,
                                                tagSymbol, intrinsics);
 
-        for (const auto& point : tagCorners(tagPose, 0.5)) {
-          tagPoints.push_back(camera.project(worldToCamera(point, cameraPose)));
-        }
+        // for (const auto& point : tagCorners(tagPose, 0.5)) {
+        //   tagPoints.push_back(camera.project(point));
+        // }
       }
 
       draw(tagPoints, cameraName.str());
