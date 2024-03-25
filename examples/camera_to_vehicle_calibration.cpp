@@ -44,6 +44,27 @@ void drawImages(const PoseMap& cameraPoses, const PoseMap& tagPoses,
   }
 }
 
+// Model that the wheel markers were mounted on the vehicle with some positional
+// accuracy. This anchors them to the vehicle frame and constrains their
+// position during optimization.
+void addTagPriors(const PoseMap& tagPoses, const double& positionError,
+                  gtsam::NonlinearFactorGraph& graph) {
+  auto wheelTagUncertainty =
+      gtsam::noiseModel::Isotropic::Sigma(3, positionError);
+
+  const std::string sides[] = {"left", "right"};
+  const std::string tagZones[] = {"front_wheel", "rear_wheel"};
+
+  for (const auto& side : sides) {
+    for (const auto& tagZone : tagZones) {
+      std::stringstream tagName;
+      tagName << side << "_" << tagZone;
+      const auto [tagSymbol, tagPose] = tagPoses.at(tagName.str());
+      graph.addPrior(tagSymbol, tagPose.translation(), wheelTagUncertainty);
+    }
+  }
+}
+
 int main(int argc, char* argv[]) {
   if (argc != 1) {
     cout << "Usage: " << argv[0] << " (no args)" << endl;
@@ -61,7 +82,12 @@ int main(int argc, char* argv[]) {
 
   gtsam::NonlinearFactorGraph graph;
 
+  // Simulate tag detections in both onboard and external cameras
   addMeasurements(cameraPoses, tagPoses, intrinsics, graph);
+
+  // Model 1cm positional uncertainty on the wheel tag positions
+  const double tagPositionError = 0.01;
+  addTagPriors(tagPoses, tagPositionError, graph);
 
   return 0;
 }

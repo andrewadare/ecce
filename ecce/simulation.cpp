@@ -127,7 +127,7 @@ void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
                                            intrinsics);
   }
 
-  // Simulate external camera measurements of all tag points on each side
+  // Simulate external camera measurements of tag points on each side
   for (const auto& side : sides) {
     for (int i = 0; i < countViews(cameraPoses, side); ++i) {
       std::stringstream cameraName;
