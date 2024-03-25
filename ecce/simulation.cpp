@@ -84,7 +84,10 @@ PoseMap lookAtTags(const PoseMap& tagPoses) {
     addCamera(ss.str(), pose, poses);
   }
 
-  // TODO onboard camera
+  // Onboard camera
+  // The goal is to recover this pose!
+  const auto pose = Camera::LookatPose({0, -1, 2}, {0, -1, 5}, up);
+  addCamera("onboard_camera", pose, poses);
 
   return poses;
 }
@@ -135,6 +138,30 @@ void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
   const std::string tagZones[] = {"front", "front_wheel", "rear_wheel"};
   const int numViews = 5;
 
+  // Simulate onboard camera measurements of front tag points
+  const auto [ocSymbol, ocPose] = cameraPoses.at("onboard_camera");
+  Camera onboardCamera(ocPose, *intrinsics);
+  std::vector<std::vector<gtsam::Point2>> imgPoints;
+  for (const auto& side : sides) {
+    std::vector<gtsam::Point2> tagPoints;  // one tag
+    std::stringstream tagName;
+    tagName << side << "_front";
+    const auto [tagSymbol, tagPose] = tagPoses.at(tagName.str());
+    for (const auto& point : tagCorners(tagPose, 0.5)) {
+      tagPoints.push_back(onboardCamera.project(point));
+    }
+
+    // Use projected tag center point as the observed landmark
+    gtsam::Point2 uv = onboardCamera.project(tagPose.translation());
+    tagPoints.push_back(uv);
+
+    graph.emplace_shared<ProjectionFactor>(uv, uvNoise, ocSymbol, tagSymbol,
+                                           intrinsics);
+    imgPoints.push_back(tagPoints);
+  }
+  draw(imgPoints, "onboard_camera");
+
+  // Simulate external camera measurements of all tag points on each side
   for (int i = 0; i < numViews; ++i) {
     for (const auto& side : sides) {
       std::stringstream cameraName;
@@ -154,21 +181,16 @@ void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
         // TODO add noise
         const auto [tagSymbol, tagPose] = tagPoses.at(tagName.str());
 
-        cout << "tag: " << tagPose.translation() << endl;
-        cout << "cam: " << cameraPose.translation() << endl;
-
         for (const auto& point : tagCorners(tagPose, 0.5)) {
           tagPoints.push_back(camera.project(point));
         }
 
         // Use projected tag center point as the observed landmark
         gtsam::Point2 uv = camera.project(tagPose.translation());
-
         tagPoints.push_back(uv);
 
         graph.emplace_shared<ProjectionFactor>(uv, uvNoise, cameraSymbol,
                                                tagSymbol, intrinsics);
-
         imgPoints.push_back(tagPoints);
       }
 
