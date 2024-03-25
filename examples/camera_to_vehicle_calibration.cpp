@@ -2,6 +2,7 @@
 
 #include <ecce/simulation.hpp>
 #include <ecce/visualization.hpp>
+#include <random>
 
 void drawImages(const PoseMap& cameraPoses, const PoseMap& tagPoses,
                 gtsam::Cal3_S2::shared_ptr intrinsics) {
@@ -73,6 +74,8 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  std::mt19937_64 rng;
+
   PoseMap tagPoses = simulateTagPoses();
   PoseMap cameraPoses = lookAtTags(tagPoses);
 
@@ -85,12 +88,14 @@ int main(int argc, char* argv[]) {
   // Build a factor graph:
   // - Simulate tag detections in both onboard and external cameras
   // - Model 1cm positional uncertainty on the wheel tag positions
+  const double tagError = 0.01;
   gtsam::NonlinearFactorGraph graph;
   addMeasurements(cameraPoses, tagPoses, intrinsics, graph);
-  addTagPriors(tagPoses, 0.01, graph);
-  graph.print("Graph:\n");
+  addTagPriors(tagPoses, tagError, graph);
+  // graph.print("Graph:\n");
 
   // Create estimates of all values as a starting point for optimization
+  std::normal_distribution<double> gauss(0.0, tagError);
   gtsam::Values estimates;
   for (const auto& [name, entry] : cameraPoses) {
     const auto& [symbol, pose] = entry;
@@ -98,13 +103,14 @@ int main(int argc, char* argv[]) {
   }
   for (const auto& [name, entry] : tagPoses) {
     const auto& [symbol, pose] = entry;
-    estimates.insert<gtsam::Point3>(symbol, pose.translation());
+    const auto noise = gtsam::Point3(gauss(rng), gauss(rng), gauss(rng));
+    estimates.insert<gtsam::Point3>(symbol, pose.translation() + noise);
   }
   estimates.print("Initial Estimates:\n");
 
   gtsam::Values result =
       gtsam::LevenbergMarquardtOptimizer(graph, estimates).optimize();
-  result.print("Final results:\n");
+  // result.print("Final results:\n");
   cout << "initial error = " << graph.error(estimates) << endl;
   cout << "final error = " << graph.error(result) << endl;
 
