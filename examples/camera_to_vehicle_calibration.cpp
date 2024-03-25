@@ -1,3 +1,5 @@
+#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+
 #include <ecce/simulation.hpp>
 #include <ecce/visualization.hpp>
 
@@ -80,14 +82,31 @@ int main(int argc, char* argv[]) {
   // Draw projected tags to image files
   drawImages(cameraPoses, tagPoses, intrinsics);
 
+  // Build a factor graph:
+  // - Simulate tag detections in both onboard and external cameras
+  // - Model 1cm positional uncertainty on the wheel tag positions
   gtsam::NonlinearFactorGraph graph;
-
-  // Simulate tag detections in both onboard and external cameras
   addMeasurements(cameraPoses, tagPoses, intrinsics, graph);
+  addTagPriors(tagPoses, 0.01, graph);
+  graph.print("Graph:\n");
 
-  // Model 1cm positional uncertainty on the wheel tag positions
-  const double tagPositionError = 0.01;
-  addTagPriors(tagPoses, tagPositionError, graph);
+  // Create estimates of all values as a starting point for optimization
+  gtsam::Values estimates;
+  for (const auto& [name, entry] : cameraPoses) {
+    const auto& [symbol, pose] = entry;
+    estimates.insert<gtsam::Pose3>(symbol, pose);
+  }
+  for (const auto& [name, entry] : tagPoses) {
+    const auto& [symbol, pose] = entry;
+    estimates.insert<gtsam::Point3>(symbol, pose.translation());
+  }
+  estimates.print("Initial Estimates:\n");
+
+  gtsam::Values result =
+      gtsam::LevenbergMarquardtOptimizer(graph, estimates).optimize();
+  result.print("Final results:\n");
+  cout << "initial error = " << graph.error(estimates) << endl;
+  cout << "final error = " << graph.error(result) << endl;
 
   return 0;
 }
