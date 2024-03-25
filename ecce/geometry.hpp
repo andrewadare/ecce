@@ -39,3 +39,8 @@ gtsam::Point3 worldToCamera(const gtsam::Point3& point,
 // BL order.
 std::vector<gtsam::Point3> tagCorners(const gtsam::Pose3& pose,
                                       const double edgeLength);
+
+// Returns 3 endpoints of a standard basis as viewed from another
+// frame. The axes are scaled using `length`.
+std::vector<gtsam::Point3> axisPoints(const gtsam::Pose3& pose,
+                                        const double length);

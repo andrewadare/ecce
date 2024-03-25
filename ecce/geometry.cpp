@@ -52,3 +52,10 @@ std::vector<gtsam::Point3> tagCorners(const gtsam::Pose3& pose,
           pose.transformFrom(gtsam::Point3(a, -a, 0)),
           pose.transformFrom(gtsam::Point3(-a, -a, 0))};
 }
+
+std::vector<gtsam::Point3> axisPoints(const gtsam::Pose3& pose,
+                                        const double l) {
+  return {pose.transformFrom(gtsam::Point3(l, 0, 0)),
+          pose.transformFrom(gtsam::Point3(0, l, 0)),
+          pose.transformFrom(gtsam::Point3(0, 0, l))};
+}
