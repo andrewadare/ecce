@@ -1,7 +1,4 @@
 #include <ecce/simulation.hpp>
-#include <opencv2/calib3d.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/imgproc.hpp>
 
 PoseMap simulateTagPoses() {
   PoseMap poses;
@@ -104,97 +101,52 @@ gtsam::Cal3_S2::shared_ptr simulateCamera() {
   return intrinsics;
 }
 
-void draw(std::vector<std::vector<gtsam::Point2>> imgPoints,
-          const std::string& name) {
-  cv::Mat im = cv::Mat::zeros(960, 1280, CV_8UC3);
-
-  for (const auto& tag : imgPoints) {
-    // TL corner in white
-    cv::circle(im, {int(tag[0][0]), int(tag[0][1])}, 6, {255, 255, 255}, -1);
-
-    // Line btwn first two points to check orientation
-    cv::line(im, {int(tag[0][0]), int(tag[0][1])},
-             {int(tag[1][0]), int(tag[1][1])}, {255, 255, 255});
-
-    for (const auto& p : tag) {
-      cv::circle(im, {int(p[0]), int(p[1])}, 4, {0, 255, 0}, -1);
-    }
-  }
-
-  cv::imwrite(cv::format("%s.png", name.c_str()), im);
-}
-
 void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
+                     gtsam::Cal3_S2::shared_ptr intrinsics,
                      gtsam::NonlinearFactorGraph& graph) {
-  // Create a calibration model for projection
-  gtsam::Cal3_S2::shared_ptr intrinsics = simulateCamera();
-
   // Isotropic 2x2 image point (u,v) detection uncertainty covariance [px]
   auto uvNoise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
   // Here we loop through external camera views on each side of the vehicle
-  // at each tag position in order to project the tag corners to image points.
+  // at each tag position in order to project the tag points to image points.
   const std::string sides[] = {"left", "right"};
   const std::string tagZones[] = {"front", "front_wheel", "rear_wheel"};
-  const int numViews = 5;
 
   // Simulate onboard camera measurements of front tag points
   const auto [ocSymbol, ocPose] = cameraPoses.at("onboard_camera");
   Camera onboardCamera(ocPose, *intrinsics);
-  std::vector<std::vector<gtsam::Point2>> imgPoints;
+
   for (const auto& side : sides) {
-    std::vector<gtsam::Point2> tagPoints;  // one tag
     std::stringstream tagName;
     tagName << side << "_front";
-    const auto [tagSymbol, tagPose] = tagPoses.at(tagName.str());
-    for (const auto& point : tagCorners(tagPose, 0.5)) {
-      tagPoints.push_back(onboardCamera.project(point));
-    }
-
     // Use projected tag center point as the observed landmark
+    // TODO add noise
+    const auto [tagSymbol, tagPose] = tagPoses.at(tagName.str());
     gtsam::Point2 uv = onboardCamera.project(tagPose.translation());
-    tagPoints.push_back(uv);
-
     graph.emplace_shared<ProjectionFactor>(uv, uvNoise, ocSymbol, tagSymbol,
                                            intrinsics);
-    imgPoints.push_back(tagPoints);
   }
-  draw(imgPoints, "onboard_camera");
 
   // Simulate external camera measurements of all tag points on each side
-  for (int i = 0; i < numViews; ++i) {
-    for (const auto& side : sides) {
+  for (const auto& side : sides) {
+    for (int i = 0; i < countViews(cameraPoses, side); ++i) {
       std::stringstream cameraName;
       cameraName << side << "_external_camera_" << i;
-
       const auto [cameraSymbol, cameraPose] = cameraPoses.at(cameraName.str());
+      Camera camera(cameraPose, *intrinsics);
 
-      gtsam::PinholeCamera<gtsam::Cal3_S2> camera(cameraPose, *intrinsics);
-
-      std::vector<std::vector<gtsam::Point2>> imgPoints;
       for (const auto& tagZone : tagZones) {
-        std::vector<gtsam::Point2> tagPoints;  // one tag
         std::stringstream tagName;
         tagName << side << "_" << tagZone;
-        cout << tagName.str() << " -> " << cameraName.str() << endl;
-
-        // TODO add noise
-        const auto [tagSymbol, tagPose] = tagPoses.at(tagName.str());
-
-        for (const auto& point : tagCorners(tagPose, 0.5)) {
-          tagPoints.push_back(camera.project(point));
-        }
 
         // Use projected tag center point as the observed landmark
+        // TODO add noise
+        const auto [tagSymbol, tagPose] = tagPoses.at(tagName.str());
         gtsam::Point2 uv = camera.project(tagPose.translation());
-        tagPoints.push_back(uv);
-
         graph.emplace_shared<ProjectionFactor>(uv, uvNoise, cameraSymbol,
                                                tagSymbol, intrinsics);
-        imgPoints.push_back(tagPoints);
+        cout << "Added " << tagName.str() << " -> " << cameraName.str() << endl;
       }
-
-      draw(imgPoints, cameraName.str());
     }
   }
 }

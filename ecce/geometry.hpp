@@ -1,10 +1,14 @@
-#ifndef __ECCE_GEOMETRY_HPP__
-#define __ECCE_GEOMETRY_HPP__
+#pragma once
+
+#include <gtsam/geometry/Cal3_S2.h>
+#include <gtsam/geometry/PinholeCamera.h>
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/Pose3.h>
 
 #include <unordered_map>
 #include <vector>
+
+using Camera = gtsam::PinholeCamera<gtsam::Cal3_S2>;
 
 // Enumerations for interpreting egocentric (x,y,z) coordinates.
 // The third direction in each system is implied via the right hand rule.
@@ -35,5 +39,3 @@ gtsam::Point3 worldToCamera(const gtsam::Point3& point,
 // BL order.
 std::vector<gtsam::Point3> tagCorners(const gtsam::Pose3& pose,
                                       const double edgeLength);
-
-#endif  // __ECCE_GEOMETRY_HPP__

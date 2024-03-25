@@ -15,7 +15,6 @@
 #include <vector>
 
 using std::cout, std::endl;
-using Camera = gtsam::PinholeCamera<gtsam::Cal3_S2>;
 using ProjectionFactor =
     gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3_S2>;
 
@@ -34,8 +33,5 @@ gtsam::Cal3_S2::shared_ptr simulateCamera();
 
 // Generate point measurements and add to factor graph
 void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
+                     gtsam::Cal3_S2::shared_ptr intrinsics,
                      gtsam::NonlinearFactorGraph& graph);
-
-// Draw projected points on image and save to <name>.png
-void draw(std::vector<std::vector<gtsam::Point2>> imgPoints,
-          const std::string& name);

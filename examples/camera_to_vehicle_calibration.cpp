@@ -9,9 +9,12 @@ int main(int argc, char* argv[]) {
   PoseMap tagPoses = simulateTagPoses();
   PoseMap cameraPoses = lookAtTags(tagPoses);
 
+  // Calibration model for projection
+  gtsam::Cal3_S2::shared_ptr intrinsics = simulateCamera();
+
   gtsam::NonlinearFactorGraph graph;
 
-  addMeasurements(cameraPoses, tagPoses, graph);
+  addMeasurements(cameraPoses, tagPoses, intrinsics, graph);
 
   return 0;
 }

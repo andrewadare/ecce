@@ -14,6 +14,18 @@ void addTag(const std::string& name, const gtsam::Pose3& pose, PoseMap& poses) {
   ++tagId;
 }
 
+int countViews(const PoseMap& poses, const std::string side) {
+  int numViews = 0;
+  for (const auto& [name, data] : poses) {
+    std::stringstream ss;
+    ss << side << "_external_camera";
+    if (name.find(ss.str()) != std::string::npos) {
+      ++numViews;
+    }
+  }
+  return numViews;
+}
+
 // TODO remove
 void addCamera(const std::string& name, const std::array<double, 3>& ypr,
                const gtsam::Point3& position, PoseMap& poses) {
