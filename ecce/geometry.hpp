@@ -1,9 +1,25 @@
-#pragma once
-
+#ifndef __ECCE_GEOMETRY_HPP__
+#define __ECCE_GEOMETRY_HPP__
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/Pose3.h>
 
+#include <unordered_map>
 #include <vector>
+
+// Enumerations for interpreting egocentric (x,y,z) coordinates.
+// The third direction in each system is implied via the right hand rule.
+enum class EgoFrame {
+  FWD_LEFT,    // ROS REP 103 / ENU
+  FWD_RIGHT,   // aeronautics / NED
+  RIGHT_DOWN,  // camera optical
+  RIGHT_UP     // OpenGL
+};
+
+// Returns a change-of-basis matrix in SO(3) from frame a to b
+const gtsam::Matrix33 basisChangeMatrix(EgoFrame a, EgoFrame b);
+
+// Change pose representation from frame a to frame b
+gtsam::Pose3 changeBasis(const gtsam::Pose3& pose, EgoFrame a, EgoFrame b);
 
 // Transform a 3D point from world coordinates to the optical frame centered at
 // the camera's position.
@@ -19,3 +35,5 @@ gtsam::Point3 worldToCamera(const gtsam::Point3& point,
 // BL order.
 std::vector<gtsam::Point3> tagCorners(const gtsam::Pose3& pose,
                                       const double edgeLength);
+
+#endif  // __ECCE_GEOMETRY_HPP__
