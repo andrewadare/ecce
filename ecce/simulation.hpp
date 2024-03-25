@@ -19,12 +19,6 @@ using Camera = gtsam::PinholeCamera<gtsam::Cal3_S2>;
 using ProjectionFactor =
     gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3_S2>;
 
-// Generate ground-truth camera poses for the calibration setup.
-// Camera coordinates are in meters and radians. XYZ = (fwd, left, up)
-// in the vehicle frame wrt the origin at the center of the rear axle on the
-// ground.
-PoseMap simulateCameraPoses();
-
 // Generate ground-truth fiducial tag poses for calibration setup
 PoseMap simulateTagPoses();
 
@@ -43,4 +37,5 @@ void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
                      gtsam::NonlinearFactorGraph& graph);
 
 // Draw projected points on image and save to <name>.png
-void draw(std::vector<gtsam::Point2> pts, const std::string& name);
+void draw(std::vector<std::vector<gtsam::Point2>> imgPoints,
+          const std::string& name);
