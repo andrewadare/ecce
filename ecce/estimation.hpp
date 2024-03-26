@@ -14,4 +14,4 @@
 // in pixel coordinates.
 gtsam::Pose3 pnp(const std::vector<gtsam::Point3>& worldPoints,
                  const std::vector<gtsam::Point2>& imagePoints,
-                 gtsam::Cal3_S2::shared_ptr intrinsics);
+                 const gtsam::Cal3_S2& intrinsics);

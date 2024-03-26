@@ -33,7 +33,7 @@ void drawImages(const PoseMap& cameraPoses, const PoseMap& tagPoses,
       }
 
       // Estimated pose of onboard camera in front tag frame
-      auto camToTag = pnp(worldPoints, imagePoints, intrinsics);
+      auto camToTag = pnp(worldPoints, imagePoints, *intrinsics);
       auto estCameraPose = tagPose * camToTag.inverse();  // in vehicle frame
       assert(estCameraPose.equals(ocPose, 1e-6));
     }
@@ -63,7 +63,7 @@ void drawImages(const PoseMap& cameraPoses, const PoseMap& tagPoses,
           }
 
           // Estimated pose of external camera in wheel tag frame
-          auto camToTag = pnp(worldPoints, imagePoints, intrinsics);
+          auto camToTag = pnp(worldPoints, imagePoints, *intrinsics);
           auto estCameraPose =
               tagPose * camToTag.inverse();  // in vehicle frame
           assert(estCameraPose.equals(cameraPose, 1e-6));

@@ -6,7 +6,7 @@ using std::cout, std::endl;
 
 gtsam::Pose3 pnp(const std::vector<gtsam::Point3>& worldPoints,
                  const std::vector<gtsam::Point2>& imagePoints,
-                 gtsam::Cal3_S2::shared_ptr intrinsics) {
+                 const gtsam::Cal3_S2& intrinsics) {
   // No lens distortion in this model
   cv::Mat distCoeffs = cv::Mat::zeros(4, 1, CV_64FC1);
 
@@ -20,10 +20,10 @@ gtsam::Pose3 pnp(const std::vector<gtsam::Point3>& worldPoints,
   // This implementation assumes (b).
 
   cv::Mat K = cv::Mat::zeros(3, 3, CV_64FC1);
-  K.at<double>(0, 0) = intrinsics->fx();
-  K.at<double>(1, 1) = intrinsics->fy();
-  K.at<double>(0, 2) = intrinsics->px();
-  K.at<double>(1, 2) = intrinsics->py();
+  K.at<double>(0, 0) = intrinsics.fx();
+  K.at<double>(1, 1) = intrinsics.fy();
+  K.at<double>(0, 2) = intrinsics.px();
+  K.at<double>(1, 2) = intrinsics.py();
   K.at<double>(2, 2) = 1;
 
   // Copy to OpenCV types
