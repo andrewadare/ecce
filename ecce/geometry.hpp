@@ -40,7 +40,10 @@ gtsam::Point3 worldToCamera(const gtsam::Point3& point,
 std::vector<gtsam::Point3> tagCorners(const gtsam::Pose3& pose,
                                       const double edgeLength);
 
+// Tag corners in the tag's own frame
+std::vector<gtsam::Point3> localTagCorners(const double edgeLength);
+
 // Returns 3 endpoints of a standard basis as viewed from another
 // frame. The axes are scaled using `length`.
 std::vector<gtsam::Point3> axisPoints(const gtsam::Pose3& pose,
-                                        const double length);
+                                      const double length);
