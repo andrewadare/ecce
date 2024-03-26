@@ -19,12 +19,3 @@ void addTag(const std::string& name, const gtsam::Pose3& pose, PoseMap& poses);
 
 // Count the number of external camera views on the "left" or "right" side
 int countViews(const PoseMap& poses, const std::string side);
-
-// TODO remove
-// Add a named, labeled camera pose to a PoseMap
-void addCamera(const std::string& name, const std::array<double, 3>& ypr,
-               const gtsam::Point3& position, PoseMap& poses);
-
-// Add a named, labeled fiducial tag pose to a PoseMap
-void addTag(const std::string& name, const std::array<double, 3>& ypr,
-            const gtsam::Point3& position, PoseMap& poses);
