@@ -16,6 +16,7 @@ void drawImages(const PoseMap& cameraPoses, const PoseMap& tagPoses,
 
   std::vector<gtsam::Pose3> tagsToDraw;
 
+  // Tag corner points in local tag frame (for PnP estimation)
   auto worldPoints = localTagCorners(0.5);
 
   // Onboard camera image
@@ -25,13 +26,17 @@ void drawImages(const PoseMap& cameraPoses, const PoseMap& tagPoses,
     const auto [tagSymbol, tagPose] = tagPoses.at(tagName.str());
     tagsToDraw.push_back(tagPose);
 
-    std::vector<gtsam::Point2> imagePoints;
-    for (const auto& point : tagCorners(tagPose, 0.5)) {
-      imagePoints.push_back(onboardCamera.project(point));
-    }
+    if (true) {  // check PnP
+      std::vector<gtsam::Point2> imagePoints;
+      for (const auto& point : tagCorners(tagPose, 0.5)) {
+        imagePoints.push_back(onboardCamera.project(point));
+      }
 
-    auto mypose = pnp(worldPoints, imagePoints, intrinsics);
-    cout << mypose << endl;
+      // Estimated pose of onboard camera in front tag frame
+      auto camToTag = pnp(worldPoints, imagePoints, intrinsics);
+      auto estCameraPose = tagPose * camToTag.inverse();  // in vehicle frame
+      assert(estCameraPose.equals(ocPose, 1e-6));
+    }
   }
   draw(tagsToDraw, onboardCamera, "onboard_camera");
   tagsToDraw.clear();
@@ -49,6 +54,20 @@ void drawImages(const PoseMap& cameraPoses, const PoseMap& tagPoses,
         tagName << side << "_" << tagZone;
         const auto [tagSymbol, tagPose] = tagPoses.at(tagName.str());
         tagsToDraw.push_back(tagPose);
+
+        // Should see GT tag pose * tag_to_camera == GT camera pose
+        if (true) {  // check PnP
+          std::vector<gtsam::Point2> imagePoints;
+          for (const auto& point : tagCorners(tagPose, 0.5)) {
+            imagePoints.push_back(camera.project(point));
+          }
+
+          // Estimated pose of external camera in wheel tag frame
+          auto camToTag = pnp(worldPoints, imagePoints, intrinsics);
+          auto estCameraPose =
+              tagPose * camToTag.inverse();  // in vehicle frame
+          assert(estCameraPose.equals(cameraPose, 1e-6));
+        }
       }
       draw(tagsToDraw, camera, cameraName.str());
       tagsToDraw.clear();

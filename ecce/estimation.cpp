@@ -44,9 +44,6 @@ gtsam::Pose3 pnp(const std::vector<gtsam::Point3>& worldPoints,
   cv::solvePnP(cvWorldPoints, cvImagePoints, K, distCoeffs, rvec, tvec,
                useExtrinsicGuess, cv::SOLVEPNP_ITERATIVE);
 
-  cout << "rvec:" << rvec << endl;
-  cout << "tvec:" << tvec << endl;
-
   return gtsam::Pose3(
       gtsam::Rot3::Rodrigues(rvec.at<double>(0, 0), rvec.at<double>(1, 0),
                              rvec.at<double>(2, 0)),
