@@ -55,7 +55,7 @@ void drawImages(const PoseMap& cameraPoses, const PoseMap& tagPoses,
         const auto [tagSymbol, tagPose] = tagPoses.at(tagName.str());
         tagsToDraw.push_back(tagPose);
 
-        // Should see GT tag pose * tag_to_camera == GT camera pose
+        // Should see GT tag pose * camera_to_tag == GT camera pose
         if (true) {  // check PnP
           std::vector<gtsam::Point2> imagePoints;
           for (const auto& point : tagCorners(tagPose, 0.5)) {
