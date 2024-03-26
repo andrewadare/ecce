@@ -1,4 +1,5 @@
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+#include <gtsam/nonlinear/Marginals.h>
 
 #include <ecce/simulation.hpp>
 #include <ecce/visualization.hpp>
@@ -95,10 +96,11 @@ int main(int argc, char* argv[]) {
   // graph.print("Graph:\n");
 
   // Create estimates of all values as a starting point for optimization
-  std::normal_distribution<double> gauss(0.0, tagError);
   gtsam::Values estimates;
+  std::normal_distribution<double> gauss(0.0, tagError);
   for (const auto& [name, entry] : cameraPoses) {
     const auto& [symbol, pose] = entry;
+    // TODO: this is GT - use perturbed pose
     estimates.insert<gtsam::Pose3>(symbol, pose);
   }
   for (const auto& [name, entry] : tagPoses) {
@@ -110,9 +112,23 @@ int main(int argc, char* argv[]) {
 
   gtsam::Values result =
       gtsam::LevenbergMarquardtOptimizer(graph, estimates).optimize();
+
+  // Throws IndeterminantLinearSystemException.
+  // Should resolve when the result has realistic uncertainty.
+  //
+  // Calculate and print marginal covariances for all variables
+  // gtsam::Marginals marginals(graph, result);
+  // for (const auto& [key, pose] : result.extract<gtsam::Pose3>()) {
+  //   cout << marginals.marginalCovariance(key) << endl;
+  // }
+
   // result.print("Final results:\n");
   cout << "initial error = " << graph.error(estimates) << endl;
   cout << "final error = " << graph.error(result) << endl;
+
+  // Save to graphviz dot file
+  // Force-directed placement rendering: "fdp c2v.dot -Tpdf -O"
+  graph.saveGraph("c2v.dot", result);
 
   return 0;
 }

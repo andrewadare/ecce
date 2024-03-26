@@ -140,7 +140,6 @@ void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
         tagName << side << "_" << tagZone;
 
         // Use projected tag center point as the observed landmark
-        // TODO add noise
         const auto [tagSymbol, tagPose] = tagPoses.at(tagName.str());
         gtsam::Point2 uv = camera.project(tagPose.translation());
         graph.emplace_shared<ProjectionFactor>(uv, uvNoise, cameraSymbol,
