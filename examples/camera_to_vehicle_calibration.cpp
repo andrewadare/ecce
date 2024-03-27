@@ -14,11 +14,8 @@ void addTagPriors(const TagCollection& tags, const double& positionError,
   auto wheelTagUncertainty =
       gtsam::noiseModel::Isotropic::Sigma(3, positionError);
 
-  const std::string sides[] = {"left", "right"};
-  const std::string tagZones[] = {"front_wheel", "rear_wheel"};
-
-  for (const auto& side : sides) {
-    for (const auto& tagZone : tagZones) {
+  for (const std::string& side : {"left", "right"}) {
+    for (const std::string& tagZone : {"front_wheel", "rear_wheel"}) {
       const auto tagSymbol = tags.getSymbol(side, tagZone);
       const auto tagPose = tags.getPose(side, tagZone);
 

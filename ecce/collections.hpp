@@ -85,4 +85,7 @@ class TagCollection {
 
   // Returns camera pose
   gtsam::Pose3 getPose(const std::string& side, const std::string& zone) const;
+
+  // Get edge length of square fiducial tags
+  const double getTagSize() const { return tagSize_; }
 };

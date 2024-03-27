@@ -10,14 +10,11 @@
 
 #include <ecce/collections.hpp>
 #include <ecce/geometry.hpp>
-#include <ecce/pose_map.hpp>  // todo remove
 #include <iostream>
 #include <sstream>
 #include <vector>
 
 using std::cout, std::endl;
-using ProjectionFactor =
-    gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3_S2>;
 
 // Generate ground-truth fiducial tag poses for calibration setup
 TagCollection simulateTags();
@@ -43,7 +40,14 @@ gtsam::Cal3_S2::shared_ptr simulateCamera();
 gtsam::Pose3 simulateEstimatedPose(const gtsam::Pose3& tagPose,
                                    const Camera& camera, const double& tagSize);
 
-// Generate point measurements and add to factor graph
-void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
-                     gtsam::Cal3_S2::shared_ptr intrinsics,
-                     gtsam::NonlinearFactorGraph& graph);
+// Perform perspective N-point estimation by simulating image point
+// measurements. Returns the camera pose in the coordinate frame of
+// the observed object.
+// Definitions:
+// pointsOnObject: 3D points in local coordinate frame of observed object,
+// e.g. corner points on a fiducial tag with respect to its center.
+// pointsInWorld:  corresponding 3D points in the "world" frame, i.e. the
+// common parent frame of the observed object and the camera.
+gtsam::Pose3 simulatePnP(const std::vector<gtsam::Point3> pointsOnObject,
+                         const std::vector<gtsam::Point3> pointsInWorld,
+                         const Camera& camera);
