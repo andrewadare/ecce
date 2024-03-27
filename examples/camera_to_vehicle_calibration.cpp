@@ -41,11 +41,6 @@ int main(int argc, char* argv[]) {
   TagCollection tags = simulateTags();
   CameraCollection cameras = simulateCameras(tags);
 
-  // Declare empty containers for the measured/estimated counterparts to all
-  // ground truth objects.
-  // TagCollection observedTags(tags.getTagSize());
-  // CameraCollection observedCameras;
-
   // Intrinsic calibration model for camera projection
   gtsam::Cal3_S2::shared_ptr intrinsics = simulateCamera();
 
@@ -60,8 +55,6 @@ int main(int argc, char* argv[]) {
   const auto tagCorners = localTagCorners(tags.getTagSize());
   for (const auto& [name, imagePoints] : measurements) {
     pnpEstimates[name] = pnp(tagCorners, imagePoints, *intrinsics);
-    // const auto [tagName, cameraName] = splitName(name);
-    // cout << tagName << " " << cameraName << endl;
   }
 
   // Estimate external camera poses in vehicle frame
@@ -118,14 +111,19 @@ int main(int argc, char* argv[]) {
   addTagPriors(tags, tagError, graph);
   graph.print("Graph:\n");
 
-  // Create estimates of all values as a starting point for optimization
-  // TODO: this is GT - use observedCameras
+  // Create estimates of all values as a starting point for optimization.
+  // We're looping through ground truth containers to get the symbols, but using
+  // the estimates composed from measurements for initialization.
   gtsam::Values estimates;
+
+  // Camera poses
   for (const auto& [name, entry] : cameras.all()) {
     const auto& [symbol, pose] = entry;
-    estimates.insert<gtsam::Pose3>(symbol, pose);
+    // estimates.insert<gtsam::Pose3>(symbol, pose);  // ground truth
+    estimates.insert<gtsam::Pose3>(symbol, poseEstimates.at(name));
   }
-  // TODO: use observedTags and remove noise
+
+  // Tag center points
   for (const auto& [name, entry] : tags.all()) {
     const auto& [symbol, pose] = entry;
     const auto noise = gtsam::Point3(gauss(rng), gauss(rng), gauss(rng));
