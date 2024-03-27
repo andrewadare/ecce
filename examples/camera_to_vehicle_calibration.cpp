@@ -30,7 +30,12 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  // Model 1cm positional uncertainty on the wheel tag positions
+  const double tagError = 0.01;
+  std::normal_distribution<double> gauss(0.0, tagError);
   std::mt19937_64 rng;
+
+  gtsam::NonlinearFactorGraph graph;
 
   // Simulate noise-free ground truth poses for all fiducial tags and cameras
   TagCollection tags = simulateTags();
@@ -38,17 +43,11 @@ int main(int argc, char* argv[]) {
 
   // Declare empty containers for the measured/estimated counterparts to all
   // ground truth objects.
-  TagCollection observedTags(tags.getTagSize());
-  CameraCollection observedCameras;
+  // TagCollection observedTags(tags.getTagSize());
+  // CameraCollection observedCameras;
 
-  // Calibration model for projection
+  // Intrinsic calibration model for camera projection
   gtsam::Cal3_S2::shared_ptr intrinsics = simulateCamera();
-
-  // Build a factor graph:
-  // - Simulate tag detections in both onboard and external cameras
-  // - Model 1cm positional uncertainty on the wheel tag positions
-  const double tagError = 0.01;
-  gtsam::NonlinearFactorGraph graph;
 
   // Assigns measurement factors to graph and returns corner points for initial
   // camera pose estimation
@@ -65,17 +64,68 @@ int main(int argc, char* argv[]) {
     // cout << tagName << " " << cameraName << endl;
   }
 
+  // Estimate external camera poses in vehicle frame
+  std::unordered_map<std::string, gtsam::Pose3> poseEstimates;
+  for (const std::string& side : {"left", "right"}) {
+    for (int i = 0; i < cameras.countViews(side); ++i) {
+      const auto cameraName = cameras.getName("external", side, i);
+
+      // TODO add noise
+      // TODO average front & rear
+      const auto frontTagPose = tags.getPose(side, "front_wheel");
+      // const auto rearTagPose = tags.getPose(side, "rear_wheel");
+      const auto& tagPose = frontTagPose;
+
+      const auto name =
+          joinNames(tags.getName(side, "front_wheel"), cameraName);
+
+      // Wheel tag -> external camera
+      auto estCameraPose = tagPose * pnpEstimates.at(name).inverse();
+      poseEstimates[cameraName] = estCameraPose;
+
+      // True without noise
+      assert(estCameraPose.equals(cameras.getPose("external", side, i), 1e-6));
+    }
+  }
+
+  // Estimate poses of the two front tags in vehicle frame.
+  // Ideally we should average all external camera views, but here just
+  // use one.
+  for (const std::string& side : {"left", "right"}) {
+    const auto tagName = tags.getName(side, "front");
+    const auto cameraName = cameras.getName("external", side, 0);
+    const auto cameraPose = poseEstimates.at(cameraName);
+    const auto name = joinNames(tagName, cameraName);
+
+    // Wheel tag -> external camera -> front tag
+    auto estTagPose = cameraPose * pnpEstimates.at(name);
+    poseEstimates[tagName] = estTagPose;
+
+    assert(estTagPose.equals(tags.getPose(side, "front"), 1e-6));
+  }
+
+  // Onboard camera
+  for (const std::string& side : {"left", "right"}) {
+    const auto tagName = tags.getName(side, "front");
+    const auto cameraName = cameras.getName("onboard");
+    const auto name = joinNames(tagName, cameraName);
+    const auto tagPose = poseEstimates.at(tagName);
+    auto estCameraPose = tagPose * pnpEstimates.at(name).inverse();
+    poseEstimates[cameraName] = estCameraPose;
+    assert(estCameraPose.equals(cameras.getPose("onboard"), 1e-6));
+  }
+
   addTagPriors(tags, tagError, graph);
   graph.print("Graph:\n");
 
   // Create estimates of all values as a starting point for optimization
+  // TODO: this is GT - use observedCameras
   gtsam::Values estimates;
-  std::normal_distribution<double> gauss(0.0, tagError);
   for (const auto& [name, entry] : cameras.all()) {
     const auto& [symbol, pose] = entry;
-    // TODO: this is GT - use perturbed pose
     estimates.insert<gtsam::Pose3>(symbol, pose);
   }
+  // TODO: use observedTags and remove noise
   for (const auto& [name, entry] : tags.all()) {
     const auto& [symbol, pose] = entry;
     const auto noise = gtsam::Point3(gauss(rng), gauss(rng), gauss(rng));
