@@ -26,6 +26,7 @@ CameraCollection simulateCameras(const TagCollection& tags);
 PointMap simulateMeasurements(const CameraCollection& cameras,
                               const TagCollection& tags,
                               gtsam::Cal3_S2::shared_ptr intrinsics,
+                              const double& pixelError,
                               gtsam::NonlinearFactorGraph& graph);
 
 // Camera model: distortion-free standard pinhole with 5 intrinsic parameters
@@ -55,7 +56,8 @@ gtsam::Pose3 simulatePnP(const std::vector<gtsam::Point3> pointsOnObject,
 // Project corners of square fiducial tag to image points
 std::vector<gtsam::Point2> projectTagCorners(const gtsam::Pose3& tagPose,
                                              const Camera& camera,
-                                             const double tagSize);
+                                             const double& tagSize,
+                                             const double& pixelError = 0);
 
 std::string joinNames(const std::string& tagName,
                       const std::string& cameraName);

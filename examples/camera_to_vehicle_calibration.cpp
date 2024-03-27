@@ -31,7 +31,8 @@ int main(int argc, char* argv[]) {
   }
 
   // Model 1cm positional uncertainty on the wheel tag positions
-  const double tagError = 0.01;
+  const double tagError = 0.01;   // meters
+  const double pixelError = 1.0;  // px
   std::normal_distribution<double> gauss(0.0, tagError);
   std::mt19937_64 rng;
 
@@ -47,7 +48,7 @@ int main(int argc, char* argv[]) {
   // Assigns measurement factors to graph and returns corner points for initial
   // camera pose estimation
   PointMap measurements =
-      simulateMeasurements(cameras, tags, intrinsics, graph);
+      simulateMeasurements(cameras, tags, intrinsics, pixelError, graph);
 
   // Find camera poses in tag coordinate frames using 4-point estimation.
   // The corners of a tag with Pose3::Identity() serve as the 3D points.
@@ -63,7 +64,6 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < cameras.countViews(side); ++i) {
       const auto cameraName = cameras.getName("external", side, i);
 
-      // TODO add noise
       // TODO average front & rear
       const auto frontTagPose = tags.getPose(side, "front_wheel");
       // const auto rearTagPose = tags.getPose(side, "rear_wheel");
@@ -76,8 +76,9 @@ int main(int argc, char* argv[]) {
       auto estCameraPose = tagPose * pnpEstimates.at(name).inverse();
       poseEstimates[cameraName] = estCameraPose;
 
-      // True without noise
-      assert(estCameraPose.equals(cameras.getPose("external", side, i), 1e-6));
+      // Only true if pixelError = 0
+      // assert(estCameraPose.equals(cameras.getPose("external", side, i),
+      // 1e-6));
     }
   }
 
@@ -94,7 +95,7 @@ int main(int argc, char* argv[]) {
     auto estTagPose = cameraPose * pnpEstimates.at(name);
     poseEstimates[tagName] = estTagPose;
 
-    assert(estTagPose.equals(tags.getPose(side, "front"), 1e-6));
+    // assert(estTagPose.equals(tags.getPose(side, "front"), 1e-6));
   }
 
   // Onboard camera
@@ -105,7 +106,7 @@ int main(int argc, char* argv[]) {
     const auto tagPose = poseEstimates.at(tagName);
     auto estCameraPose = tagPose * pnpEstimates.at(name).inverse();
     poseEstimates[cameraName] = estCameraPose;
-    assert(estCameraPose.equals(cameras.getPose("onboard"), 1e-6));
+    // assert(estCameraPose.equals(cameras.getPose("onboard"), 1e-6));
   }
 
   addTagPriors(tags, tagError, graph);
