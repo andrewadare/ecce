@@ -158,6 +158,19 @@ std::string joinNames(const std::string& tagName,
   return ss.str();
 }
 
+std::pair<std::string, std::string> splitName(const std::string name) {
+  std::pair<std::string, std::string> names;  // tag, camera
+  const std::string delimiter = "_to_";
+
+  size_t i = name.find(delimiter);
+  assert(i != std::string::npos);
+
+  names.first = name.substr(0, i);
+  names.second = name.substr(i + 4, name.size());
+
+  return names;
+}
+
 PointMap simulateMeasurements(const CameraCollection& cameras,
                               const TagCollection& tags,
                               gtsam::Cal3_S2::shared_ptr intrinsics,

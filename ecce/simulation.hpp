@@ -56,3 +56,7 @@ gtsam::Pose3 simulatePnP(const std::vector<gtsam::Point3> pointsOnObject,
 std::vector<gtsam::Point2> projectTagCorners(const gtsam::Pose3& tagPose,
                                              const Camera& camera,
                                              const double tagSize);
+
+std::string joinNames(const std::string& tagName,
+                      const std::string& cameraName);
+std::pair<std::string, std::string> splitName(const std::string name);
