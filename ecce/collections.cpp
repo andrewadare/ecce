@@ -1,4 +1,5 @@
 #include <ecce/collections.hpp>
+#include <iostream>
 #include <sstream>
 
 CameraCollection::CameraCollection() : poseMap_(PoseMap()) {}
@@ -22,31 +23,36 @@ void TagCollection::add(const std::string& name, const gtsam::Pose3& pose) {
 
 std::string CameraCollection::getName(const std::string& type,
                                       const std::string& side,
-                                      const int& index) {
-  std::stringstream name;
+                                      const int& index) const {
+  std::stringstream ss;
   auto sep = (side == "") ? "" : "_";
-  name << side << sep << type << "_camera";
+  ss << side << sep << type << "_camera";
   if (index >= 0) {
-    name << "_" << index;
+    ss << "_" << index;
   }
-  return name.str();
+
+  if (poseMap_.count(ss.str()) == 0) {
+    std::cout << "Warning: no camera named " << ss.str() << std::endl;
+  }
+
+  return ss.str();
 }
 
 gtsam::Symbol CameraCollection::getSymbol(const std::string& type,
                                           const std::string& side,
-                                          const int& index) {
+                                          const int& index) const {
   const std::string name = getName(type, side, index);
   return poseMap_.at(name).first;
 }
 
 gtsam::Pose3 CameraCollection::getPose(const std::string& type,
                                        const std::string& side,
-                                       const int& index) {
+                                       const int& index) const {
   const std::string name = getName(type, side, index);
   return poseMap_.at(name).second;
 }
 
-int CameraCollection::countViews(const std::string& side) {
+int CameraCollection::countViews(const std::string& side) const {
   int numViews = 0;
   for (const auto& [name, data] : poseMap_) {
     std::stringstream ss;
@@ -59,20 +65,25 @@ int CameraCollection::countViews(const std::string& side) {
 }
 
 std::string TagCollection::getName(const std::string& side,
-                                   const std::string& zone) {
-  std::stringstream name;
-  name << side << zone;
-  return name.str();
+                                   const std::string& zone) const {
+  std::stringstream ss;
+  ss << side << "_" << zone;
+
+  if (poseMap_.count(ss.str()) == 0) {
+    std::cout << "Warning: no tag named " << ss.str() << std::endl;
+  }
+
+  return ss.str();
 }
 
 gtsam::Symbol TagCollection::getSymbol(const std::string& side,
-                                       const std::string& zone) {
+                                       const std::string& zone) const {
   const std::string name = getName(side, zone);
   return poseMap_.at(name).first;
 }
 
 gtsam::Pose3 TagCollection::getPose(const std::string& side,
-                                    const std::string& zone) {
+                                    const std::string& zone) const {
   const std::string name = getName(side, zone);
   return poseMap_.at(name).second;
 }

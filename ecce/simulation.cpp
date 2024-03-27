@@ -1,19 +1,10 @@
 #include <ecce/estimation.hpp>
 #include <ecce/simulation.hpp>
 
-std::string cameraName(const std::string& type, const std::string& side,
-                       const int& index) {
-  std::stringstream name;
-  auto sep = (side == "") ? "" : "_";
-  name << side << sep << type << "_camera";
-  if (index >= 0) {
-    name << "_" << index;
-  }
-  return name.str();
-}
-
-PoseMap simulateTagPoses() {
-  PoseMap poses;
+TagCollection simulateTags() {
+  // Tag edge length in meters
+  const double tagSize = 0.5;
+  TagCollection tags(tagSize);
 
   // Made-up vehicle parameters in meters
   const double wheelbase = 3.0;
@@ -46,19 +37,18 @@ PoseMap simulateTagPoses() {
   fr = changeBasis(fr, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
 
   // 2 sides x 3 longitudinal zones
-  addTag("left_front", fl, poses);
-  addTag("left_front_wheel", lf, poses);
-  addTag("left_rear_wheel", lr, poses);
+  tags.add("left_front", fl);
+  tags.add("left_front_wheel", lf);
+  tags.add("left_rear_wheel", lr);
+  tags.add("right_front", fr);
+  tags.add("right_front_wheel", rf);
+  tags.add("right_rear_wheel", rr);
 
-  addTag("right_front", fr, poses);
-  addTag("right_front_wheel", rf, poses);
-  addTag("right_rear_wheel", rr, poses);
-
-  return poses;
+  return tags;
 }
 
-PoseMap lookAtTags(const PoseMap& tagPoses) {
-  PoseMap poses;  // for cameras
+CameraCollection simulateCameras(const TagCollection& tags) {
+  CameraCollection cameras;
 
   // Camera positions
   constexpr size_t numViews = 5;
@@ -72,8 +62,9 @@ PoseMap lookAtTags(const PoseMap& tagPoses) {
   const std::array<double, numViews> y = {-1.5, -1.5, -1.5, -1.5, -1.5};
   const std::array<double, numViews> z = {-2, -1, 0, 1, 2};
 
-  const auto [rfSymbol, rfPose] = tagPoses.at("right_front_wheel");
-  const auto [lfSymbol, lfPose] = tagPoses.at("left_front_wheel");
+  // Use front wheel tags as the center of attention for Camera::lookAt
+  const gtsam::Pose3 rfPose = tags.at("right_front_wheel").second;
+  const gtsam::Pose3 lfPose = tags.at("left_front_wheel").second;
 
   // Left external camera poses
   for (size_t i = 0; i < numViews; ++i) {
@@ -81,7 +72,7 @@ PoseMap lookAtTags(const PoseMap& tagPoses) {
     ss << "left_external_camera_" << i;
     const auto pose =
         Camera::LookatPose({-x[i], y[i], z[i]}, lfPose.translation(), up);
-    addCamera(ss.str(), pose, poses);
+    cameras.add(ss.str(), pose);
   }
 
   // Right external camera poses
@@ -90,15 +81,15 @@ PoseMap lookAtTags(const PoseMap& tagPoses) {
     ss << "right_external_camera_" << i;
     const auto pose =
         Camera::LookatPose({x[i], y[i], z[i]}, rfPose.translation(), up);
-    addCamera(ss.str(), pose, poses);
+    cameras.add(ss.str(), pose);
   }
 
   // Onboard camera
   // The goal is to recover this pose!
   const auto pose = Camera::LookatPose({0, -1, 2}, {0, -1, 5}, up);
-  addCamera("onboard_camera", pose, poses);
+  cameras.add("onboard_camera", pose);
 
-  return poses;
+  return cameras;
 }
 
 gtsam::Cal3_S2::shared_ptr simulateCamera() {
@@ -127,6 +118,47 @@ gtsam::Pose3 simulateEstimatedPose(const gtsam::Pose3& tagPose,
 
   // Estimated pose of camera in tag frame
   return pnp(worldPoints, imagePoints, camera.calibration());
+}
+
+void simulateMeasurements(const CameraCollection& cameras,
+                          const TagCollection& tags,
+                          gtsam::Cal3_S2::shared_ptr intrinsics,
+                          gtsam::NonlinearFactorGraph& graph) {
+  // Isotropic 2x2 image point (u,v) detection uncertainty covariance [px]
+  auto uvNoise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
+
+  // Here we loop through external camera views on each side of the vehicle
+  // at each tag position in order to project the tag points to image points.
+  const std::string sides[] = {"left", "right"};
+  const std::string tagZones[] = {"front", "front_wheel", "rear_wheel"};
+
+  // Simulate onboard camera measurements of front tag points
+  const auto [ocSymbol, ocPose] = cameras.at("onboard_camera");
+  Camera onboardCamera(ocPose, *intrinsics);
+  for (const auto& side : sides) {
+    gtsam::Point2 uv =
+        onboardCamera.project(tags.getPose(side, "front").translation());
+    graph.emplace_shared<ProjectionFactor>(
+        uv, uvNoise, ocSymbol, tags.getSymbol(side, "front"), intrinsics);
+  }
+
+  // Simulate external camera measurements of tag points on each side
+  for (const auto& side : sides) {
+    for (int i = 0; i < cameras.countViews(side); ++i) {
+      const auto cameraPose = cameras.getPose("external", side, i);
+      const auto cameraSymbol = cameras.getSymbol("external", side, i);
+      Camera camera(cameraPose, *intrinsics);
+
+      // Use projected tag center point as the observed landmark
+      for (const auto& tagZone : tagZones) {
+        const auto tagPose = tags.getPose(side, tagZone);
+        const auto tagSymbol = tags.getSymbol(side, tagZone);
+        gtsam::Point2 uv = camera.project(tagPose.translation());
+        graph.emplace_shared<ProjectionFactor>(uv, uvNoise, cameraSymbol,
+                                               tagSymbol, intrinsics);
+      }
+    }
+  }
 }
 
 void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,

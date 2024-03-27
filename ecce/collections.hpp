@@ -25,20 +25,27 @@ class CameraCollection {
   // Add a named, labeled camera pose to the collection
   void add(const std::string& name, const gtsam::Pose3& pose);
 
+  const PoseMap all() const { return poseMap_; }
+
+  // Returns factor graph symbol and camera pose by name
+  std::pair<gtsam::Symbol, gtsam::Pose3> at(const std::string& name) const {
+    return poseMap_.at(name);
+  }
+
   // Returns name of camera with the given parameters
   std::string getName(const std::string& type, const std::string& side = "",
-                      const int& index = -1);
+                      const int& index = -1) const;
 
   // Returns unique factor graph symbol
   gtsam::Symbol getSymbol(const std::string& type, const std::string& side = "",
-                          const int& index = -1);
+                          const int& index = -1) const;
 
   // Returns camera pose
   gtsam::Pose3 getPose(const std::string& type, const std::string& side = "",
-                       const int& index = -1);
+                       const int& index = -1) const;
 
   // Returns the number of external camera views on the "left" or "right" side
-  int countViews(const std::string& side);
+  int countViews(const std::string& side) const;
 };
 
 class TagCollection {
@@ -62,12 +69,20 @@ class TagCollection {
   // Add a named, labeled tag pose to the collection
   void add(const std::string& name, const gtsam::Pose3& pose);
 
+  const PoseMap all() const { return poseMap_; }
+
+  // Returns factor graph symbol and camera pose by name
+  std::pair<gtsam::Symbol, gtsam::Pose3> at(const std::string& name) const {
+    return poseMap_.at(name);
+  }
+
   // Returns name of tag with the given parameters
-  std::string getName(const std::string& side, const std::string& zone);
+  std::string getName(const std::string& side, const std::string& zone) const;
 
   // Returns unique factor graph symbol
-  gtsam::Symbol getSymbol(const std::string& side, const std::string& zone);
+  gtsam::Symbol getSymbol(const std::string& side,
+                          const std::string& zone) const;
 
   // Returns camera pose
-  gtsam::Pose3 getPose(const std::string& side, const std::string& zone);
+  gtsam::Pose3 getPose(const std::string& side, const std::string& zone) const;
 };

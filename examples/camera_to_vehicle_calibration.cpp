@@ -1,6 +1,7 @@
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/nonlinear/Marginals.h>
 
+#include <ecce/collections.hpp>
 #include <ecce/estimation.hpp>
 #include <ecce/simulation.hpp>
 #include <random>
@@ -8,7 +9,7 @@
 // Model that the wheel markers were mounted on the vehicle with some positional
 // accuracy. This anchors them to the vehicle frame and constrains their
 // position during optimization.
-void addTagPriors(const PoseMap& tagPoses, const double& positionError,
+void addTagPriors(const TagCollection& tags, const double& positionError,
                   gtsam::NonlinearFactorGraph& graph) {
   auto wheelTagUncertainty =
       gtsam::noiseModel::Isotropic::Sigma(3, positionError);
@@ -18,9 +19,9 @@ void addTagPriors(const PoseMap& tagPoses, const double& positionError,
 
   for (const auto& side : sides) {
     for (const auto& tagZone : tagZones) {
-      std::stringstream tagName;
-      tagName << side << "_" << tagZone;
-      const auto [tagSymbol, tagPose] = tagPoses.at(tagName.str());
+      const auto tagSymbol = tags.getSymbol(side, tagZone);
+      const auto tagPose = tags.getPose(side, tagZone);
+
       graph.addPrior(tagSymbol, tagPose.translation(), wheelTagUncertainty);
     }
   }
@@ -34,8 +35,8 @@ int main(int argc, char* argv[]) {
 
   std::mt19937_64 rng;
 
-  PoseMap tagPoses = simulateTagPoses();
-  PoseMap cameraPoses = lookAtTags(tagPoses);
+  TagCollection tags = simulateTags();
+  CameraCollection cameras = simulateCameras(tags);
 
   // Calibration model for projection
   gtsam::Cal3_S2::shared_ptr intrinsics = simulateCamera();
@@ -45,19 +46,21 @@ int main(int argc, char* argv[]) {
   // - Model 1cm positional uncertainty on the wheel tag positions
   const double tagError = 0.01;
   gtsam::NonlinearFactorGraph graph;
-  addMeasurements(cameraPoses, tagPoses, intrinsics, graph);
-  addTagPriors(tagPoses, tagError, graph);
-  // graph.print("Graph:\n");
+
+  simulateMeasurements(cameras, tags, intrinsics, graph);
+
+  addTagPriors(tags, tagError, graph);
+  graph.print("Graph:\n");
 
   // Create estimates of all values as a starting point for optimization
   gtsam::Values estimates;
   std::normal_distribution<double> gauss(0.0, tagError);
-  for (const auto& [name, entry] : cameraPoses) {
+  for (const auto& [name, entry] : cameras.all()) {
     const auto& [symbol, pose] = entry;
     // TODO: this is GT - use perturbed pose
     estimates.insert<gtsam::Pose3>(symbol, pose);
   }
-  for (const auto& [name, entry] : tagPoses) {
+  for (const auto& [name, entry] : tags.all()) {
     const auto& [symbol, pose] = entry;
     const auto noise = gtsam::Point3(gauss(rng), gauss(rng), gauss(rng));
     estimates.insert<gtsam::Point3>(symbol, pose.translation() + noise);
@@ -83,6 +86,5 @@ int main(int argc, char* argv[]) {
   // Save to graphviz dot file
   // Force-directed placement rendering: "fdp c2v.dot -Tpdf -O"
   graph.saveGraph("c2v.dot", result);
-
   return 0;
 }

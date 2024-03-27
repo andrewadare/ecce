@@ -44,9 +44,11 @@ void drawImages(const PoseMap& cameraPoses, const PoseMap& tagPoses,
   // External camera images
   for (const auto& side : sides) {
     for (int i = 0; i < countViews(cameraPoses, side); ++i) {
-      std::stringstream cameraName;
-      cameraName << side << "_external_camera_" << i;
-      const auto [cameraSymbol, cameraPose] = cameraPoses.at(cameraName.str());
+      std::stringstream ss;
+      ss << side << "_external_camera_" << i;
+      // cout << ss.str() << " " << cameraName("external", side, i) << endl;
+
+      const auto [cameraSymbol, cameraPose] = cameraPoses.at(ss.str());
       Camera camera(cameraPose, *intrinsics);
 
       for (const auto& tagZone : tagZones) {
@@ -69,7 +71,7 @@ void drawImages(const PoseMap& cameraPoses, const PoseMap& tagPoses,
           assert(estCameraPose.equals(cameraPose, 1e-6));
         }
       }
-      draw(tagsToDraw, camera, cameraName.str());
+      draw(tagsToDraw, camera, ss.str());
       tagsToDraw.clear();
     }
   }
@@ -81,14 +83,15 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  PoseMap tagPoses = simulateTagPoses();
-  PoseMap cameraPoses = lookAtTags(tagPoses);
+  // TODO fix
+  // PoseMap tagPoses = simulateTagPoses();
+  // PoseMap cameraPoses = lookAtTags(tagPoses);
 
-  // Calibration model for projection
-  gtsam::Cal3_S2::shared_ptr intrinsics = simulateCamera();
+  // // Calibration model for projection
+  // gtsam::Cal3_S2::shared_ptr intrinsics = simulateCamera();
 
-  // Draw projected tags to image files
-  drawImages(cameraPoses, tagPoses, intrinsics);
+  // // Draw projected tags to image files
+  // drawImages(cameraPoses, tagPoses, intrinsics);
 
   return 0;
 }

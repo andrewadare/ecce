@@ -8,8 +8,9 @@
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/slam/ProjectionFactor.h>
 
+#include <ecce/collections.hpp>
 #include <ecce/geometry.hpp>
-#include <ecce/pose_map.hpp>
+#include <ecce/pose_map.hpp>  // todo remove
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -19,10 +20,16 @@ using ProjectionFactor =
     gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3_S2>;
 
 // Generate ground-truth fiducial tag poses for calibration setup
-PoseMap simulateTagPoses();
+TagCollection simulateTags();
 
 // Generate ground-truth camera poses by looking at tags
-PoseMap lookAtTags(const PoseMap& tagPoses);
+CameraCollection simulateCameras(const TagCollection& tags);
+
+// Generate measurement factors and add to the graph
+void simulateMeasurements(const CameraCollection& cameras,
+                          const TagCollection& tags,
+                          gtsam::Cal3_S2::shared_ptr intrinsics,
+                          gtsam::NonlinearFactorGraph& graph);
 
 // Camera model: distortion-free standard pinhole with 5 intrinsic parameters
 // (fx, fy, skew, principal point). For simplicity, take the onboard
@@ -40,6 +47,3 @@ gtsam::Pose3 simulateEstimatedPose(const gtsam::Pose3& tagPose,
 void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
                      gtsam::Cal3_S2::shared_ptr intrinsics,
                      gtsam::NonlinearFactorGraph& graph);
-
-std::string cameraName(const std::string& type, const std::string& side = "",
-                       const int& index = -1);
