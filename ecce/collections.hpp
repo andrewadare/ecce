@@ -1,5 +1,6 @@
 #pragma once
 
+#include <gtsam/geometry/Point2.h>
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/inference/Symbol.h>
@@ -7,8 +8,10 @@
 #include <string>
 #include <unordered_map>
 
+// Hash maps for simulated poses and measurements
 using PoseMap =
     std::unordered_map<std::string, std::pair<gtsam::Symbol, gtsam::Pose3>>;
+using PointMap = std::unordered_map<std::string, std::vector<gtsam::Point2>>;
 
 class CameraCollection {
  private:

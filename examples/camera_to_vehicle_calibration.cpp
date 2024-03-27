@@ -44,7 +44,14 @@ int main(int argc, char* argv[]) {
   const double tagError = 0.01;
   gtsam::NonlinearFactorGraph graph;
 
-  simulateMeasurements(cameras, tags, intrinsics, graph);
+  // Assigns measurement factors to graph and returns corner points for initial
+  // camera pose estimation
+  PointMap measurements =
+      simulateMeasurements(cameras, tags, intrinsics, graph);
+
+  // for (const auto& [name, pts] : measurements) {
+  //   cout << name << " " << pts.size() << endl;
+  // }
 
   addTagPriors(tags, tagError, graph);
   graph.print("Graph:\n");

@@ -107,17 +107,24 @@ gtsam::Cal3_S2::shared_ptr simulateCamera() {
   return intrinsics;
 }
 
-gtsam::Pose3 simulateEstimatedPose(const gtsam::Pose3& tagPose,
-                                   const Camera& camera,
-                                   const double& tagSize) {
-  // Tag corner points in local tag frame
-  std::vector<gtsam::Point3> worldPoints = localTagCorners(tagSize);
-
-  // "Measured" 2D corner points
+std::vector<gtsam::Point2> projectTagCorners(const gtsam::Pose3& tagPose,
+                                             const Camera& camera,
+                                             const double tagSize) {
   std::vector<gtsam::Point2> imagePoints;
   for (const auto& point : tagCorners(tagPose, tagSize)) {
     imagePoints.push_back(camera.project(point));
   }
+  return imagePoints;
+}
+
+gtsam::Pose3 simulateEstimatedPose(const gtsam::Pose3& tagPose,
+                                   const Camera& camera,
+                                   const double& tagSize) {
+  // Tag corner points in local tag frame
+  const std::vector<gtsam::Point3> worldPoints = localTagCorners(tagSize);
+
+  // "Measured" 2D corner points
+  const auto imagePoints = projectTagCorners(tagPose, camera, tagSize);
 
   // Estimated pose of camera in tag frame
   return pnp(worldPoints, imagePoints, camera.calibration());
@@ -144,21 +151,38 @@ gtsam::Pose3 simulatePnP(const std::vector<gtsam::Point3> pointsOnObject,
   return pnp(pointsOnObject, imagePoints, camera.calibration());
 }
 
-void simulateMeasurements(const CameraCollection& cameras,
-                          const TagCollection& tags,
-                          gtsam::Cal3_S2::shared_ptr intrinsics,
-                          gtsam::NonlinearFactorGraph& graph) {
+std::string joinNames(const std::string& tagName,
+                      const std::string& cameraName) {
+  std::stringstream ss;
+  ss << tagName << "_to_" << cameraName;
+  return ss.str();
+}
+
+PointMap simulateMeasurements(const CameraCollection& cameras,
+                              const TagCollection& tags,
+                              gtsam::Cal3_S2::shared_ptr intrinsics,
+                              gtsam::NonlinearFactorGraph& graph) {
+  // Stores tag corner points projected to image (name => points)
+  PointMap pointMap;
+  const double tagSize = tags.getTagSize();
+
   // Isotropic 2x2 image point (u,v) detection uncertainty covariance [px]
-  auto uvNoise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
+  const double sigmaPx = 1.0;
+  auto uvNoise = gtsam::noiseModel::Isotropic::Sigma(2, sigmaPx);
 
   // Simulate onboard camera measurements of front tag points
   const auto [ocSymbol, ocPose] = cameras.at("onboard_camera");
-  Camera onboardCamera(ocPose, *intrinsics);
+  Camera camera(ocPose, *intrinsics);
   for (const std::string& side : {"left", "right"}) {
-    gtsam::Point2 uv =
-        onboardCamera.project(tags.getPose(side, "front").translation());
+    const auto tagPose = tags.getPose(side, "front");
+    gtsam::Point2 uv = camera.project(tagPose.translation());
     graph.emplace_shared<ProjectionFactor>(
         uv, uvNoise, ocSymbol, tags.getSymbol(side, "front"), intrinsics);
+
+    // TODO add noise
+    const auto name =
+        joinNames(tags.getName(side, "front"), cameras.getName("onboard"));
+    pointMap[name] = projectTagCorners(tagPose, camera, tagSize);
   }
 
   // Simulate external camera measurements of tag points on each side
@@ -175,7 +199,13 @@ void simulateMeasurements(const CameraCollection& cameras,
         gtsam::Point2 uv = camera.project(tagPose.translation());
         graph.emplace_shared<ProjectionFactor>(uv, uvNoise, cameraSymbol,
                                                tagSymbol, intrinsics);
+        // TODO add noise
+        const auto name = joinNames(tags.getName(side, zone),
+                                    cameras.getName("external", side, i));
+        pointMap[name] = projectTagCorners(tagPose, camera, tagSize);
       }
     }
   }
+
+  return pointMap;
 }

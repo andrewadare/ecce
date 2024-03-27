@@ -23,10 +23,10 @@ TagCollection simulateTags();
 CameraCollection simulateCameras(const TagCollection& tags);
 
 // Generate measurement factors and add to the graph
-void simulateMeasurements(const CameraCollection& cameras,
-                          const TagCollection& tags,
-                          gtsam::Cal3_S2::shared_ptr intrinsics,
-                          gtsam::NonlinearFactorGraph& graph);
+PointMap simulateMeasurements(const CameraCollection& cameras,
+                              const TagCollection& tags,
+                              gtsam::Cal3_S2::shared_ptr intrinsics,
+                              gtsam::NonlinearFactorGraph& graph);
 
 // Camera model: distortion-free standard pinhole with 5 intrinsic parameters
 // (fx, fy, skew, principal point). For simplicity, take the onboard
@@ -51,3 +51,8 @@ gtsam::Pose3 simulateEstimatedPose(const gtsam::Pose3& tagPose,
 gtsam::Pose3 simulatePnP(const std::vector<gtsam::Point3> pointsOnObject,
                          const std::vector<gtsam::Point3> pointsInWorld,
                          const Camera& camera);
+
+// Project corners of square fiducial tag to image points
+std::vector<gtsam::Point2> projectTagCorners(const gtsam::Pose3& tagPose,
+                                             const Camera& camera,
+                                             const double tagSize);
