@@ -31,7 +31,15 @@ PoseMap lookAtTags(const PoseMap& tagPoses);
 //   tan(fov/2) = image_size / 2f.
 gtsam::Cal3_S2::shared_ptr simulateCamera();
 
+// Find camera pose in tag frame using known tag geometry and simulated 2D point
+// detections
+gtsam::Pose3 simulateEstimatedPose(const gtsam::Pose3& tagPose,
+                                   const Camera& camera, const double& tagSize);
+
 // Generate point measurements and add to factor graph
 void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
                      gtsam::Cal3_S2::shared_ptr intrinsics,
                      gtsam::NonlinearFactorGraph& graph);
+
+std::string cameraName(const std::string& type, const std::string& side = "",
+                       const int& index = -1);

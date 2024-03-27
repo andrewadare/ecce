@@ -1,4 +1,16 @@
+#include <ecce/estimation.hpp>
 #include <ecce/simulation.hpp>
+
+std::string cameraName(const std::string& type, const std::string& side,
+                       const int& index) {
+  std::stringstream name;
+  auto sep = (side == "") ? "" : "_";
+  name << side << sep << type << "_camera";
+  if (index >= 0) {
+    name << "_" << index;
+  }
+  return name.str();
+}
 
 PoseMap simulateTagPoses() {
   PoseMap poses;
@@ -99,6 +111,22 @@ gtsam::Cal3_S2::shared_ptr simulateCamera() {
       new gtsam::Cal3_S2(fx, fy, 0., image_width / 2, image_height / 2));
 
   return intrinsics;
+}
+
+gtsam::Pose3 simulateEstimatedPose(const gtsam::Pose3& tagPose,
+                                   const Camera& camera,
+                                   const double& tagSize) {
+  // Tag corner points in local tag frame
+  std::vector<gtsam::Point3> worldPoints = localTagCorners(tagSize);
+
+  // "Measured" 2D corner points
+  std::vector<gtsam::Point2> imagePoints;
+  for (const auto& point : tagCorners(tagPose, tagSize)) {
+    imagePoints.push_back(camera.project(point));
+  }
+
+  // Estimated pose of camera in tag frame
+  return pnp(worldPoints, imagePoints, camera.calibration());
 }
 
 void addMeasurements(const PoseMap& cameraPoses, const PoseMap& tagPoses,
