@@ -32,14 +32,21 @@ std::string CameraCollection::getName(const std::string& type,
   return name.str();
 }
 
-std::string TagCollection::getName(const std::string& side,
-                                   const std::string& zone) {
-  std::stringstream name;
-  name << side << zone;
-  return name.str();
+gtsam::Symbol CameraCollection::getSymbol(const std::string& type,
+                                          const std::string& side,
+                                          const int& index) {
+  const std::string name = getName(type, side, index);
+  return poseMap_.at(name).first;
 }
 
-int CameraCollection::countViews(const std::string side) {
+gtsam::Pose3 CameraCollection::getPose(const std::string& type,
+                                       const std::string& side,
+                                       const int& index) {
+  const std::string name = getName(type, side, index);
+  return poseMap_.at(name).second;
+}
+
+int CameraCollection::countViews(const std::string& side) {
   int numViews = 0;
   for (const auto& [name, data] : poseMap_) {
     std::stringstream ss;
@@ -49,4 +56,23 @@ int CameraCollection::countViews(const std::string side) {
     }
   }
   return numViews;
+}
+
+std::string TagCollection::getName(const std::string& side,
+                                   const std::string& zone) {
+  std::stringstream name;
+  name << side << zone;
+  return name.str();
+}
+
+gtsam::Symbol TagCollection::getSymbol(const std::string& side,
+                                       const std::string& zone) {
+  const std::string name = getName(side, zone);
+  return poseMap_.at(name).first;
+}
+
+gtsam::Pose3 TagCollection::getPose(const std::string& side,
+                                    const std::string& zone) {
+  const std::string name = getName(side, zone);
+  return poseMap_.at(name).second;
 }

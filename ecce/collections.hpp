@@ -29,8 +29,16 @@ class CameraCollection {
   std::string getName(const std::string& type, const std::string& side = "",
                       const int& index = -1);
 
+  // Returns unique factor graph symbol
+  gtsam::Symbol getSymbol(const std::string& type, const std::string& side = "",
+                          const int& index = -1);
+
+  // Returns camera pose
+  gtsam::Pose3 getPose(const std::string& type, const std::string& side = "",
+                       const int& index = -1);
+
   // Returns the number of external camera views on the "left" or "right" side
-  int countViews(const std::string side);
+  int countViews(const std::string& side);
 };
 
 class TagCollection {
@@ -56,4 +64,10 @@ class TagCollection {
 
   // Returns name of tag with the given parameters
   std::string getName(const std::string& side, const std::string& zone);
+
+  // Returns unique factor graph symbol
+  gtsam::Symbol getSymbol(const std::string& side, const std::string& zone);
+
+  // Returns camera pose
+  gtsam::Pose3 getPose(const std::string& side, const std::string& zone);
 };
