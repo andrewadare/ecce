@@ -83,15 +83,15 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  // TODO fix
-  // PoseMap tagPoses = simulateTagPoses();
-  // PoseMap cameraPoses = lookAtTags(tagPoses);
+  TagCollection tags = simulateTags();
+  CameraCollection cameras = simulateCameras(tags);
 
   // // Calibration model for projection
-  // gtsam::Cal3_S2::shared_ptr intrinsics = simulateCamera();
+  gtsam::Cal3_S2::shared_ptr intrinsics = simulateCamera();
 
-  // // Draw projected tags to image files
-  // drawImages(cameraPoses, tagPoses, intrinsics);
+  // Draw projected tags to image files
+  // TODO refactor to use *Collection
+  drawImages(cameras.all(), tags.all(), intrinsics);
 
   return 0;
 }
