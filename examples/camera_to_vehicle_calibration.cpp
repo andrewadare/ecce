@@ -32,8 +32,14 @@ int main(int argc, char* argv[]) {
 
   std::mt19937_64 rng;
 
+  // Simulate noise-free ground truth poses for all fiducial tags and cameras
   TagCollection tags = simulateTags();
   CameraCollection cameras = simulateCameras(tags);
+
+  // Declare empty containers for the measured/estimated counterparts to all
+  // ground truth objects.
+  TagCollection observedTags(tags.getTagSize());
+  CameraCollection observedCameras;
 
   // Calibration model for projection
   gtsam::Cal3_S2::shared_ptr intrinsics = simulateCamera();
@@ -49,9 +55,15 @@ int main(int argc, char* argv[]) {
   PointMap measurements =
       simulateMeasurements(cameras, tags, intrinsics, graph);
 
-  // for (const auto& [name, pts] : measurements) {
-  //   cout << name << " " << pts.size() << endl;
-  // }
+  // Find camera poses in tag coordinate frames using 4-point estimation.
+  // The corners of a tag with Pose3::Identity() serve as the 3D points.
+  std::unordered_map<std::string, gtsam::Pose3> pnpEstimates;
+  const auto tagCorners = localTagCorners(tags.getTagSize());
+  for (const auto& [name, imagePoints] : measurements) {
+    pnpEstimates[name] = pnp(tagCorners, imagePoints, *intrinsics);
+    // const auto [tagName, cameraName] = splitName(name);
+    // cout << tagName << " " << cameraName << endl;
+  }
 
   addTagPriors(tags, tagError, graph);
   graph.print("Graph:\n");
