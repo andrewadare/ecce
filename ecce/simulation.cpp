@@ -69,6 +69,11 @@ CameraCollection simulateCameras(const TagCollection& tags) {
   const gtsam::Pose3 rfPose = tags.at("right_front_wheel").second;
   const gtsam::Pose3 lfPose = tags.at("left_front_wheel").second;
 
+  // Onboard camera
+  // The goal is to recover this pose!
+  const auto pose = Camera::LookatPose({0, -1, 2}, {0, -1, 5}, up);
+  cameras.add("onboard_camera", pose);
+
   // Left external camera poses
   for (size_t i = 0; i < numViews; ++i) {
     std::stringstream ss;
@@ -87,11 +92,6 @@ CameraCollection simulateCameras(const TagCollection& tags) {
     cameras.add(ss.str(), pose);
   }
 
-  // Onboard camera
-  // The goal is to recover this pose!
-  const auto pose = Camera::LookatPose({0, -1, 2}, {0, -1, 5}, up);
-  cameras.add("onboard_camera", pose);
-
   return cameras;
 }
 
@@ -105,6 +105,19 @@ gtsam::Cal3_S2::shared_ptr simulateCamera() {
       new gtsam::Cal3_S2(fx, fy, 0., image_width / 2, image_height / 2));
 
   return intrinsics;
+}
+
+gtsam::Point2 projectTagCenter(const gtsam::Pose3& tagPose,
+                               const Camera& camera, const double& pixelError) {
+  std::vector<gtsam::Point2> imagePoints;
+  std::normal_distribution<double> gauss(0.0, pixelError);
+  std::mt19937_64 rng;
+
+  gtsam::Point2 uv = camera.project(tagPose.translation());
+  if (pixelError > 0) {
+    uv += gtsam::Point2(gauss(rng), gauss(rng));
+  }
+  return uv;
 }
 
 std::vector<gtsam::Point2> projectTagCorners(const gtsam::Pose3& tagPose,
@@ -140,14 +153,6 @@ gtsam::Pose3 simulateEstimatedPose(const gtsam::Pose3& tagPose,
   return pnp(worldPoints, imagePoints, camera.calibration());
 }
 
-// Perform perspective N-point estimation by simulating image point
-// measurements. Returns the camera pose in the coordinate frame of
-// the observed object.
-// Definitions:
-// pointsOnObject: 3D points in local coordinate frame of observed object,
-// e.g. corner points on a fiducial tag with respect to its center.
-// pointsInWorld:  corresponding 3D points in the "world" frame, i.e. the
-// common parent frame of the observed object and the camera.
 gtsam::Pose3 simulatePnP(const std::vector<gtsam::Point3> pointsOnObject,
                          const std::vector<gtsam::Point3> pointsInWorld,
                          const Camera& camera) {
@@ -191,21 +196,26 @@ PointMap simulateMeasurements(const CameraCollection& cameras,
   const double tagSize = tags.getTagSize();
 
   // Isotropic 2x2 image point (u,v) detection uncertainty covariance [px]
-  const double sigmaPx = 1.0;
-  auto uvNoise = gtsam::noiseModel::Isotropic::Sigma(2, sigmaPx);
+  auto uvNoise = gtsam::noiseModel::Isotropic::Sigma(2, pixelError);
 
   // Simulate onboard camera measurements of front tag points
   const auto [ocSymbol, ocPose] = cameras.at("onboard_camera");
   Camera camera(ocPose, *intrinsics);
   for (const std::string& side : {"left", "right"}) {
     const auto tagPose = tags.getPose(side, "front");
-    gtsam::Point2 uv = camera.project(tagPose.translation());
+    gtsam::Point2 uv = projectTagCenter(tagPose, camera, pixelError);
+
     graph.emplace_shared<ProjectionFactor>(
         uv, uvNoise, ocSymbol, tags.getSymbol(side, "front"), intrinsics);
 
     const auto name =
         joinNames(tags.getName(side, "front"), cameras.getName("onboard"));
     pointMap[name] = projectTagCorners(tagPose, camera, tagSize, pixelError);
+
+    // for (const auto& uv : pointMap[name]) {
+    //   graph.emplace_shared<ProjectionFactor>(
+    //       uv, uvNoise, ocSymbol, tags.getSymbol(side, "front"), intrinsics);
+    // }
   }
 
   // Simulate external camera measurements of tag points on each side
@@ -219,13 +229,19 @@ PointMap simulateMeasurements(const CameraCollection& cameras,
       for (const std::string& zone : {"front", "front_wheel", "rear_wheel"}) {
         const auto tagPose = tags.getPose(side, zone);
         const auto tagSymbol = tags.getSymbol(side, zone);
-        gtsam::Point2 uv = camera.project(tagPose.translation());
+        gtsam::Point2 uv = projectTagCenter(tagPose, camera, pixelError);
+
         graph.emplace_shared<ProjectionFactor>(uv, uvNoise, cameraSymbol,
                                                tagSymbol, intrinsics);
         const auto name = joinNames(tags.getName(side, zone),
                                     cameras.getName("external", side, i));
         pointMap[name] =
             projectTagCorners(tagPose, camera, tagSize, pixelError);
+
+        // for (const auto& uv : pointMap[name]) {
+        //   graph.emplace_shared<ProjectionFactor>(uv, uvNoise, cameraSymbol,
+        //                                          tagSymbol, intrinsics);
+        // }
       }
     }
   }

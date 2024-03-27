@@ -6,16 +6,13 @@
 #include <ecce/simulation.hpp>
 #include <random>
 
-// Model that the wheel markers were mounted on the vehicle with some positional
-// accuracy. This anchors them to the vehicle frame and constrains their
-// position during optimization.
 void addTagPriors(const TagCollection& tags, const double& positionError,
                   gtsam::NonlinearFactorGraph& graph) {
   auto wheelTagUncertainty =
       gtsam::noiseModel::Isotropic::Sigma(3, positionError);
 
   for (const std::string& side : {"left", "right"}) {
-    for (const std::string& tagZone : {"front_wheel", "rear_wheel"}) {
+    for (const std::string& tagZone : {"front", "front_wheel", "rear_wheel"}) {
       const auto tagSymbol = tags.getSymbol(side, tagZone);
       const auto tagPose = tags.getPose(side, tagZone);
 
@@ -30,9 +27,9 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  // Model 1cm positional uncertainty on the wheel tag positions
-  const double tagError = 0.01;   // meters
-  const double pixelError = 1.0;  // px
+  // Model positional uncertainty on the tag positions
+  const double tagError = 0.1;    // meters
+  const double pixelError = 2.0;  // px
   std::normal_distribution<double> gauss(0.0, tagError);
   std::mt19937_64 rng;
 
@@ -41,6 +38,15 @@ int main(int argc, char* argv[]) {
   // Simulate noise-free ground truth poses for all fiducial tags and cameras
   TagCollection tags = simulateTags();
   CameraCollection cameras = simulateCameras(tags);
+
+  for (const auto& [name, entry] : tags.all()) {
+    const auto& [symbol, pose] = entry;
+    cout << name << " " << symbol << endl;
+  }
+  for (const auto& [name, entry] : cameras.all()) {
+    const auto& [symbol, pose] = entry;
+    cout << name << " " << symbol << endl;
+  }
 
   // Intrinsic calibration model for camera projection
   gtsam::Cal3_S2::shared_ptr intrinsics = simulateCamera();
@@ -109,6 +115,13 @@ int main(int argc, char* argv[]) {
     // assert(estCameraPose.equals(cameras.getPose("onboard"), 1e-6));
   }
 
+  // Prior for onboard camera
+  // x, y, z, rx, ry, rz [meters, rad]
+  // gtsam::Vector6 sigmas({0.1, 0.1, 0.1, 0.1, 0.1, 0.1});
+  gtsam::Vector6 sigmas({0.5, 0.5, 0.5, 0.2, 0.2, 0.2});
+  graph.addPrior(cameras.getSymbol("onboard"), poseEstimates["onboard_camera"],
+                 gtsam::noiseModel::Diagonal::Sigmas(sigmas));
+
   addTagPriors(tags, tagError, graph);
   graph.print("Graph:\n");
 
@@ -135,14 +148,11 @@ int main(int argc, char* argv[]) {
   gtsam::Values result =
       gtsam::LevenbergMarquardtOptimizer(graph, estimates).optimize();
 
-  // Throws IndeterminantLinearSystemException.
-  // Should resolve when the result has realistic uncertainty.
-  //
   // Calculate and print marginal covariances for all variables
-  // gtsam::Marginals marginals(graph, result);
-  // for (const auto& [key, pose] : result.extract<gtsam::Pose3>()) {
-  //   cout << marginals.marginalCovariance(key) << endl;
-  // }
+  gtsam::Marginals marginals(graph, result);
+  for (const auto& [key, pose] : result.extract<gtsam::Pose3>()) {
+    cout << marginals.marginalCovariance(key) << endl;
+  }
 
   // result.print("Final results:\n");
   cout << "initial error = " << graph.error(estimates) << endl;

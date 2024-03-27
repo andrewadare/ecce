@@ -59,6 +59,10 @@ std::vector<gtsam::Point2> projectTagCorners(const gtsam::Pose3& tagPose,
                                              const double& tagSize,
                                              const double& pixelError = 0);
 
+gtsam::Point2 projectTagCenter(const gtsam::Pose3& tagPose,
+                               const Camera& camera,
+                               const double& pixelError = 0);
+
 std::string joinNames(const std::string& tagName,
                       const std::string& cameraName);
 std::pair<std::string, std::string> splitName(const std::string name);
