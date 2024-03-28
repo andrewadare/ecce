@@ -5,11 +5,16 @@ using ProjectionFactor =
     gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3_S2>;
 
 TagCollection simulateTags() {
+  // NOTE: I made up these coords in a fwd-left-up system, then later decided to
+  // use right-down-forward. I called changeBasis instead of retyping
+  // everything.
+
   // Tag edge length in meters
   const double tagSize = 0.5;
-  TagCollection tags(tagSize);
+  TagCollection tags(tagSize);                          // returned container
+  std::unordered_map<std::string, gtsam::Pose3> poses;  // used locally
 
-  // Made-up vehicle parameters in meters
+  // Vehicle parameters in meters
   const double wheelbase = 3.0;
   const double track = 2.0;
   const double wheel_radius = 0.5;
@@ -22,35 +27,31 @@ TagCollection simulateTags() {
   const auto Rfront = gtsam::Rot3::Ypr(0, M_PI, 0);
 
   // Wheel-mounted tags: right front/rear and left front/rear
-  auto rf = gtsam::Pose3(Rright, {wheelbase, -track / 2, wheel_radius});
-  auto rr = gtsam::Pose3(Rright, {0.0, -track / 2, wheel_radius});
-  auto lf = gtsam::Pose3(Rleft, {wheelbase, track / 2, wheel_radius});
-  auto lr = gtsam::Pose3(Rleft, {0.0, track / 2, wheel_radius});
+  poses["right_front_wheel"] =
+      gtsam::Pose3(Rright, {wheelbase, -track / 2, wheel_radius});
+  poses["right_rear_wheel"] =
+      gtsam::Pose3(Rright, {0.0, -track / 2, wheel_radius});
+  poses["left_front_wheel"] =
+      gtsam::Pose3(Rleft, {wheelbase, track / 2, wheel_radius});
+  poses["left_rear_wheel"] =
+      gtsam::Pose3(Rleft, {0.0, track / 2, wheel_radius});
 
   // Front tags face back to vehicle with left/right offsets from centerline
-  auto fl = gtsam::Pose3(Rfront, {5.0, 1.5, 1.0});
-  auto fr = gtsam::Pose3(Rfront, {5.0, -1.5, 1.0});
+  poses["left_front"] = gtsam::Pose3(Rfront, {5.0, 1.5, 1.0});
+  poses["right_front"] = gtsam::Pose3(Rfront, {5.0, -1.5, 1.0});
 
-  // FLU -> RDF
-  rf = changeBasis(rf, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
-  rr = changeBasis(rr, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
-  lf = changeBasis(lf, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
-  lr = changeBasis(lr, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
-  fl = changeBasis(fl, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
-  fr = changeBasis(fr, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
-
-  // 2 sides x 3 longitudinal zones
-  tags.add("left_front", fl);
-  tags.add("left_front_wheel", lf);
-  tags.add("left_rear_wheel", lr);
-  tags.add("right_front", fr);
-  tags.add("right_front_wheel", rf);
-  tags.add("right_rear_wheel", rr);
+  for (const auto& [name, pose] : poses) {
+    const auto rdfPose =
+        changeBasis(pose, EgoFrame::FWD_LEFT, EgoFrame::RIGHT_DOWN);
+    tags.add(name, rdfPose);
+  }
 
   return tags;
 }
 
 CameraCollection simulateCameras(const TagCollection& tags) {
+  // All pose coords are in a right-down-forward system
+
   CameraCollection cameras;
 
   // Camera positions
@@ -70,8 +71,8 @@ CameraCollection simulateCameras(const TagCollection& tags) {
   const gtsam::Pose3 lfPose = tags.at("left_front_wheel").second;
 
   // Onboard camera
-  // The goal is to recover this pose!
-  const auto pose = Camera::LookatPose({0, -1, 2}, {0, -1, 5}, up);
+  // The goal of extrinsic calibration is to recover this pose!
+  const auto pose = Camera::LookatPose({0, -2, 2}, {0, -1, 5}, up);
   cameras.add("onboard_camera", pose);
 
   // Left external camera poses
