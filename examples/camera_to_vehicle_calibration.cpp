@@ -1,9 +1,11 @@
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/nonlinear/Marginals.h>
+#include <gtsam/slam/dataset.h>
 
 #include <ecce/collections.hpp>
 #include <ecce/estimation.hpp>
 #include <ecce/simulation.hpp>
+#include <fstream>
 #include <random>
 
 void addTagPriors(const TagCollection& tags, const double& positionError,
@@ -161,5 +163,19 @@ int main(int argc, char* argv[]) {
   // Save to graphviz dot file
   // Force-directed placement rendering: "fdp c2v.dot -Tpdf -O"
   graph.saveGraph("c2v.dot", result);
+  gtsam::writeG2o(graph, estimates, "estimates.g2o");
+  gtsam::writeG2o(graph, result, "result.g2o");
+
+  // GTSAM does not support writing projection factors to g2o, so write symbols
+  // out manually.
+  std::ofstream fs("symbols.txt");
+  for (const auto& factor : graph) {
+    for (const auto& key : factor->keys()) {
+      fs << gtsam::Symbol(key) << " ";
+    }
+    fs << endl;
+  }
+  fs.close();
+
   return 0;
 }
