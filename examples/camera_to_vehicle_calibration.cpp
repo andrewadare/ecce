@@ -162,7 +162,7 @@ int main(int argc, char* argv[]) {
 
   // Save to graphviz dot file
   // Force-directed placement rendering: "fdp c2v.dot -Tpdf -O"
-  graph.saveGraph("c2v.dot", result);
+  graph.saveGraph("graph.dot", result);
   gtsam::writeG2o(graph, estimates, "estimates.g2o");
   gtsam::writeG2o(graph, result, "result.g2o");
 
