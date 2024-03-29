@@ -23,6 +23,25 @@ void addTagPriors(const TagCollection& tags, const double& positionError,
   }
 }
 
+// Writes binary factor errors to a text file with lines containing
+// camera_symbol tag_symbol error
+void saveErrors(gtsam::NonlinearFactorGraph& graph, gtsam::Values& values,
+                const std::string& filename) {
+  std::ofstream fs(filename);
+
+  for (const auto& factor : graph) {
+    // Keep only binary factors
+    if (factor->keys().size() != 2) {
+      continue;
+    }
+
+    fs << gtsam::Symbol(factor->keys()[0]) << " "
+       << gtsam::Symbol(factor->keys()[1]) << " " << factor->error(values)
+       << endl;
+  }
+  fs.close();
+}
+
 int main(int argc, char* argv[]) {
   if (argc != 1) {
     cout << "Usage: " << argv[0] << " (no args)" << endl;
@@ -152,9 +171,12 @@ int main(int argc, char* argv[]) {
 
   // Calculate and print marginal covariances for all variables
   gtsam::Marginals marginals(graph, result);
-  for (const auto& [key, pose] : result.extract<gtsam::Pose3>()) {
-    cout << marginals.marginalCovariance(key) << endl;
-  }
+  // for (const auto& [key, pose] : result.extract<gtsam::Pose3>()) {
+  //   cout << marginals.marginalCovariance(key) << endl;
+  // }
+
+  // graph.printErrors(estimates, "residuals BEFORE optimization\n");
+  // graph.printErrors(result, "residuals AFTER optimization\n");
 
   // result.print("Final results:\n");
   cout << "initial error = " << graph.error(estimates) << endl;
@@ -166,8 +188,11 @@ int main(int argc, char* argv[]) {
   gtsam::writeG2o(graph, estimates, "estimates.g2o");
   gtsam::writeG2o(graph, result, "result.g2o");
 
-  // GTSAM does not support writing projection factors to g2o, so write symbols
-  // out manually.
+  saveErrors(graph, estimates, "initial-errors.txt");
+  saveErrors(graph, result, "final-errors.txt");
+
+  // GTSAM does not support writing projection factors to g2o, so write
+  // symbols out manually.
   std::ofstream fs("symbols.txt");
   for (const auto& factor : graph) {
     for (const auto& key : factor->keys()) {
