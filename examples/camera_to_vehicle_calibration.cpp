@@ -23,6 +23,21 @@ void addTagPriors(const TagCollection& tags, const double& positionError,
   }
 }
 
+// GTSAM does not support writing projection factors to g2o, so write
+// symbols out manually.
+void saveSymbols(gtsam::NonlinearFactorGraph& graph,
+                 const std::string& filename) {
+  std::ofstream fs(filename);
+
+  for (const auto& factor : graph) {
+    for (const auto& key : factor->keys()) {
+      fs << gtsam::Symbol(key) << " ";
+    }
+    fs << endl;
+  }
+  fs.close();
+}
+
 // Writes binary factor errors to a text file with lines containing
 // camera_symbol tag_symbol error
 void saveErrors(gtsam::NonlinearFactorGraph& graph, gtsam::Values& values,
@@ -50,7 +65,7 @@ int main(int argc, char* argv[]) {
 
   // Model positional uncertainty on the tag positions
   const double tagError = 0.1;    // meters
-  const double pixelError = 2.0;  // px
+  const double pixelError = 1.0;  // px
   std::normal_distribution<double> gauss(0.0, tagError);
   std::mt19937_64 rng;
 
@@ -188,19 +203,9 @@ int main(int argc, char* argv[]) {
   gtsam::writeG2o(graph, estimates, "estimates.g2o");
   gtsam::writeG2o(graph, result, "result.g2o");
 
+  saveSymbols(graph, "symbols.txt");
   saveErrors(graph, estimates, "initial-errors.txt");
   saveErrors(graph, result, "final-errors.txt");
-
-  // GTSAM does not support writing projection factors to g2o, so write
-  // symbols out manually.
-  std::ofstream fs("symbols.txt");
-  for (const auto& factor : graph) {
-    for (const auto& key : factor->keys()) {
-      fs << gtsam::Symbol(key) << " ";
-    }
-    fs << endl;
-  }
-  fs.close();
 
   return 0;
 }
