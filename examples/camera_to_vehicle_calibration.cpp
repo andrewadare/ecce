@@ -57,6 +57,15 @@ void saveErrors(gtsam::NonlinearFactorGraph& graph, gtsam::Values& values,
   fs.close();
 }
 
+void savePoses(const PoseMap& poses, const std::string& filename) {
+  std::ofstream fs(filename);
+  for (const auto& [name, entry] : poses) {
+    const auto& [symbol, pose] = entry;
+    fs << symbol.index() << pose.matrix() << endl;
+  }
+  fs.close();
+}
+
 int main(int argc, char* argv[]) {
   if (argc != 1) {
     cout << "Usage: " << argv[0] << " (no args)" << endl;
@@ -153,7 +162,6 @@ int main(int argc, char* argv[]) {
 
   // Prior for onboard camera
   // x, y, z, rx, ry, rz [meters, rad]
-  // gtsam::Vector6 sigmas({0.1, 0.1, 0.1, 0.1, 0.1, 0.1});
   gtsam::Vector6 sigmas({0.5, 0.5, 0.5, 0.2, 0.2, 0.2});
   graph.addPrior(cameras.getSymbol("onboard"), poseEstimates["onboard_camera"],
                  gtsam::noiseModel::Diagonal::Sigmas(sigmas));
@@ -207,5 +215,6 @@ int main(int argc, char* argv[]) {
   saveErrors(graph, estimates, "initial-errors.txt");
   saveErrors(graph, result, "final-errors.txt");
 
+  savePoses(tags.all(), "tag-poses.txt");
   return 0;
 }
