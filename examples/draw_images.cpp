@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
   TagCollection tags = simulateTags();
   CameraCollection cameras = simulateCameras(tags);
 
-  // // Calibration model for projection
+  // Calibration model for projection
   gtsam::Cal3_S2::shared_ptr intrinsics = simulateCamera();
 
   // Draw projected tags to image files
