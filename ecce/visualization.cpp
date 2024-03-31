@@ -59,7 +59,7 @@ void draw(const std::vector<gtsam::Pose3>& tagPoses, const Camera& camera,
 
     // Draw corner points
     for (const cv::Point2i& p : corners) {
-      cv::circle(im, p, 2, {255, 255, 255}, -1);
+      cv::circle(im, p, 4, {255, 255, 255}, -1);
     }
 
     cv::imwrite(cv::format("%s.png", name.c_str()), im);
