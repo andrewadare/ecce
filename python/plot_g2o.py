@@ -9,7 +9,10 @@ from g2o_interop import read_sfm_g2o
 
 
 def plot(
-    g2o_in: str | Path, html_out: str | Path, factor_symbols: list[list[str]] = []
+    g2o_in: str | Path,
+    html_out: str | Path,
+    factor_symbols: list[list[str]] = [],
+    tag_dict: dict[int, np.ndarray] = {},
 ):
     """Plot a 3D scene from a g2o file and save to html_out.
     GTSAM lacks support for printing some measurement factors to g2o format.
@@ -19,7 +22,8 @@ def plot(
     graph = read_sfm_g2o(g2o_in)
 
     cameras: list[SE3] = list(graph.nodes.values())
-    tags: np.ndarray = np.vstack(list(graph.features.values()))
+
+    tag_centers = np.vstack(list(graph.features.values()))
 
     # Get a list of (camera, tag) index pairs
     edges: list[tuple[int, int]] = []
@@ -28,7 +32,9 @@ def plot(
             c, t = symbols
             edges.append((int(c[1:]), int(t[1:])))
 
-    plot_sfm_scene(cameras, tags, html_name=html_out, edges=edges)
+    plot_sfm_scene(
+        cameras, tag_centers, html_name=html_out, edges=edges, tag_dict=tag_dict
+    )
 
 
 if __name__ == "__main__":
@@ -40,4 +46,16 @@ if __name__ == "__main__":
         for line in f.readlines():
             symbols.append(line.strip().split())
 
-    plot("result.g2o", "result.html", factor_symbols=symbols)
+    tags: dict[int, np.ndarray] = dict()  # id => SE(3) matrix
+    with open("tag-poses.txt") as f:
+        for line in f.readlines():
+            strings = line.split()
+            id = int(strings[0])
+            matrix = np.array([float(x) for x in strings[1:]]).reshape([4, 4])
+            tags[id] = matrix
+
+    # Version showing april tags
+    # plot("result.g2o", "result.html", factor_symbols=symbols)
+
+    # Version overlaying graph edges
+    plot("result.g2o", "edges.html", factor_symbols=symbols, tag_dict=tags)
