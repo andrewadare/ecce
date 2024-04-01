@@ -66,6 +66,14 @@ void savePoses(const PoseMap& poses, const std::string& filename) {
   fs.close();
 }
 
+void saveInfoMatrix(const gtsam::Marginals& marginals,
+                    const gtsam::Values& values, const std::string& filename) {
+  gtsam::JointMarginal info = marginals.jointMarginalInformation(values.keys());
+  std::ofstream fs(filename);
+  fs << info.fullMatrix() << endl;
+  fs.close();
+}
+
 int main(int argc, char* argv[]) {
   if (argc != 1) {
     cout << "Usage: " << argv[0] << " (no args)" << endl;
@@ -214,7 +222,8 @@ int main(int argc, char* argv[]) {
   saveSymbols(graph, "symbols.txt");
   saveErrors(graph, estimates, "initial-errors.txt");
   saveErrors(graph, result, "final-errors.txt");
-
   savePoses(tags.all(), "tag-poses.txt");
+  saveInfoMatrix(marginals, result, "info-matrix.txt");
+
   return 0;
 }
