@@ -46,7 +46,7 @@ def main():
 
     # Tag
     tag_size = 0.5
-    tag_pose = SE3([0, 0, 1.0], [np.pi / 4, 0, -0.1])
+    tag_pose = SE3([0, 0, 1.0], [np.pi / 6, np.pi, -0.1])
     im = create_tag("DICT_APRILTAG_16h5", 0, 300, 50)
     texture = pv.numpy_to_texture(im)
     # By setting the resolution all the way down to 1, plane.points is only the 4 corners.
@@ -92,6 +92,13 @@ def main():
         show_scalar_bar=False,
     )
     plotter.add_mesh(tag, texture=texture)
+    plotter.add_mesh(
+        frame_axes(tag_pose.matrix, size=0.1),
+        line_width=10,
+        scalars=range(3),
+        cmap=rgb_colormap,
+        show_scalar_bar=False,
+    )
 
     plotter.add_points(
         ray_points,
@@ -109,7 +116,7 @@ def main():
 
     plotter.add_mesh(
         img,
-        opacity=0.25,
+        opacity=0.5,
         show_edges=True,
     )
 
