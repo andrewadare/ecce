@@ -74,6 +74,17 @@ void saveInfoMatrix(const gtsam::Marginals& marginals,
   fs.close();
 }
 
+void saveCovariances(const gtsam::Marginals& marginals,
+                     const gtsam::Values& result, const std::string& filename) {
+  std::ofstream fs(filename);
+
+  for (const auto& [key, pose] : result.extract<gtsam::Pose3>()) {
+    fs << gtsam::Symbol(key) << " " << marginals.marginalCovariance(key)
+       << endl;
+  }
+  fs.close();
+}
+
 int main(int argc, char* argv[]) {
   if (argc != 1) {
     cout << "Usage: " << argv[0] << " (no args)" << endl;
@@ -202,9 +213,6 @@ int main(int argc, char* argv[]) {
 
   // Calculate and print marginal covariances for all variables
   gtsam::Marginals marginals(graph, result);
-  // for (const auto& [key, pose] : result.extract<gtsam::Pose3>()) {
-  //   cout << marginals.marginalCovariance(key) << endl;
-  // }
 
   // graph.printErrors(estimates, "residuals BEFORE optimization\n");
   // graph.printErrors(result, "residuals AFTER optimization\n");
@@ -224,6 +232,7 @@ int main(int argc, char* argv[]) {
   saveErrors(graph, result, "final-errors.txt");
   savePoses(tags.all(), "tag-poses.txt");
   saveInfoMatrix(marginals, result, "info-matrix.txt");
+  saveCovariances(marginals, result, "covariances.txt");
 
   return 0;
 }
