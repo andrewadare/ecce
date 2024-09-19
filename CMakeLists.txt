@@ -17,7 +17,7 @@ add_library(${PROJECT_LIB} STATIC ${SOURCES})
 include_directories(${PROJECT_LIB} SYSTEM PUBLIC
     ${PROJECT_SOURCE_DIR}
     ${OpenCV_INCLUDE_DIRS}
-    ${GTSAM_INCLUDE_DIRS}
+    ${GTSAM_INCLUDE_DIR}
 )
 target_link_libraries(${PROJECT_LIB}
     ${OpenCV_LIBS}
