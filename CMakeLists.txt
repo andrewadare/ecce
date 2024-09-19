@@ -7,7 +7,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 
 find_package(OpenCV REQUIRED)
-find_package(gtsam REQUIRED)
+find_package(GTSAM REQUIRED)
 
 # Build static lib from project sources
 set(PROJECT_LIB ${PROJECT_NAME})
