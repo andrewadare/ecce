@@ -36,3 +36,6 @@ build/
 
 # VS Code config
 .vscode/
+
+# MacOS Desktop Services config
+.DS_Store
