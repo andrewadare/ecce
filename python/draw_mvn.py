@@ -9,7 +9,7 @@ from g2o_interop import read_g2o_se3_quat
 from scipy.linalg import cholesky
 
 
-def sample_mvn(mu: np.ndarray, cov: np.ndarray, n=1):
+def sample_mvn(mu: np.ndarray, cov: np.ndarray, n: int):
     """Return n samples from a multivariate normal distribution with mean vector mu
     and covariance matrix cov.
 
@@ -26,9 +26,8 @@ def sample_mvn(mu: np.ndarray, cov: np.ndarray, n=1):
     -------
     ndarray - shape (n, m)
     """
-    m = len(mu)
     A = cholesky(cov)  # Find an m x m matrix A such that A @ A.T = sigma
-    z = np.random.randn(m, n)
+    z = np.random.randn(len(mu), n)
     samples = mu[:, np.newaxis] + A @ z
     return samples.T
 
