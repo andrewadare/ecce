@@ -221,18 +221,20 @@ int main(int argc, char* argv[]) {
   cout << "initial error = " << graph.error(estimates) << endl;
   cout << "final error = " << graph.error(result) << endl;
 
+  const std::string outdir("/tmp/ecce-results/");
+
   // Save to graphviz dot file
   // Force-directed placement rendering: "fdp c2v.dot -Tpdf -O"
-  graph.saveGraph("graph.dot", result);
-  gtsam::writeG2o(graph, estimates, "estimates.g2o");
-  gtsam::writeG2o(graph, result, "result.g2o");
+  graph.saveGraph(outdir + "graph.dot", result);
+  gtsam::writeG2o(graph, estimates, outdir + "estimates.g2o");
+  gtsam::writeG2o(graph, result, outdir + "result.g2o");
 
-  saveSymbols(graph, "symbols.txt");
-  saveErrors(graph, estimates, "initial-errors.txt");
-  saveErrors(graph, result, "final-errors.txt");
-  savePoses(tags.all(), "tag-poses.txt");
-  saveInfoMatrix(marginals, result, "info-matrix.txt");
-  saveCovariances(marginals, result, "covariances.txt");
+  saveSymbols(graph, outdir + "symbols.txt");
+  saveErrors(graph, estimates, outdir + "initial-errors.txt");
+  saveErrors(graph, result, outdir + "final-errors.txt");
+  savePoses(tags.all(), outdir + "tag-poses.txt");
+  saveInfoMatrix(marginals, result, outdir + "info-matrix.txt");
+  saveCovariances(marginals, result, outdir + "covariances.txt");
 
   return 0;
 }
